@@ -20,7 +20,7 @@ sessionInfo() # for reproducibility
 # Now pasting code from Jing Yan and Don Milton that was used in previous work on the EMIT UMD data.
 # The goal here is to review their script and improve the clarity
 
-#### *Using Script: Jing Yan and Dr. Milton's "Merge_1-3.R-update.r" ####
+#### **** Using Script: Jing Yan and Dr. Milton's "Merge_1-3.R-update.r" **** ####
 
 # Original file information:
 
@@ -83,7 +83,7 @@ sessionInfo() # for reproducibility
 #     c.	Drop obs from field db that do not have corresponding values in the Redcap sample log. 
 #     d.	Output dataframe with naone obs per sample_id -> samples.cc
 
-#### Read in and work with the Clinical Database ####
+#### READ in and work with the *CLINICAL DATABASE* ####
 
 clinical_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
 clinical_umd <- read.csv(clinical_in_file)
@@ -175,7 +175,7 @@ sum(sum_clinical$g2_run > 0)
 sum_clinical$date_visit <- as.Date(as.character(sum_clinical$date_visit), format = "%m/%d/%y")
 print(head(tbl_df(sum_clinical)))
 
-#### Read in and work with the G2 Log Data ####
+#### READ in and work with the *G2 LOG DATA* ####
 
 g2_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
 g2_log <- read.csv(g2_in_file)
@@ -376,7 +376,7 @@ print(ftable(addmargins(with(merge1, table(visit_num, g2_run, g2_coll_num, exclu
 # Variables in merge1
 print(head(tbl_df(merge1)))
 
-#### Read in and work with the Field Sample Database ####
+#### READ in and work with the *FIELD SAMPLE DATABASE* ####
 
 # Input Field Sample Data
 field_db_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
@@ -552,7 +552,7 @@ merge2$merge2.i <- T
 # Head of merge2
 print(head(tbl_df(merge2)))
 
-#### Read in and work with the UMD Samples Database (REDCap Data) ####
+#### READ in and work with the *UMD SAMPLES DATABASE (REDCAP DATA)* ####
 sample_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv'
 sample_in <- read.csv(sample_in_file, as.is = T)
 
@@ -1020,7 +1020,7 @@ samples.cc <- merge3 %>%
 
 saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
 
-#### *Using Script: Jing Yan and Dr. Milton's "Snippets analysis_1.r" ####
+#### **** Using Script: Jing Yan and Dr. Milton's "Snippets analysis_1.r" **** ####
 
 # Perhaps the earlier lines of script in this program address what "Snippets analysis_1.r" was mostly getting at.
 # However, "Snippets analysis_1.r" provides some, perhaps useful, summary information and looks at roommates. 
@@ -1036,7 +1036,7 @@ saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data
 #          sessions they completed. 
 #		   Will identify roommate screenings and roommates enrolled after screening as roommates. 
 
-#### Read in and work with Clinical Database ####
+#### READ in and work with Clinical Database ####
 
 clinical_umd <- read.csv(clinical_in_file)
 
@@ -1233,7 +1233,7 @@ tab3link <- tab1link %>%
   filter(tab1link$enroll == 0)
 names(tab3link)[4] <- 'first_visit_date'
 
-#### Read in and work with the G2 Log Data ####
+#### READ in and work with the G2 Log Data ####
 
 g1 <- read.csv(g2_in_file)
 
@@ -1288,7 +1288,93 @@ m2 <- tab1link %>%
 ## Write out the enrollment summary ##
 write.csv(m2, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_Summary.csv")
 
-#### *Using Script: Jing Yan's "field database with redcap culture.R" #### 
+#### **** Using Script: Jing Yan's "field database with redcap culture.R" **** #### 
+
+## Original information:
+
+# "field data base check with redcap culture.R"
+# by Jing Yan
+# December 16, 2015
+# Purpose:check if all the redcap culture sample id match with the field id   
+
+#### READ in and work with the *FIELD SAMPLE DATABASE* ####
+
+a <- read.csv(field_db_in_file, as.is = T)
+
+names(a)
+a1 <- a %>% 
+  select(SUBJECT_IDENTIFIER, SAMPLE_ID, COLLECTION_DT, TYPE_NAME)
+names(a1)[2] = "sample_id"
+names(a1)[3] = "Dates_a"
+names(a1)[4] = "Sample.Type"
+
+# Add a new column as newdate which the same as collection_dt but with format m/d/y
+a2 <- a1 %>% 
+  mutate(newdate = as.Date(Dates_a, format = '%m/%d/%Y'))
+
+# Read in redcap_culture data
+b <- read.csv(sample_in_file, as.is = T)
+
+#add a new colunm named as new date which is the same with date of sample collection
+b2 <- b %>% 
+  mutate(newdate = as.Date(dt_visit, format = '%m/%d/%Y'))
+
+#b3 proves that there is no missing date of sample collection in the redcap culture file
+b3 <- b2 %>% 
+  filter(dt_visit != '') %>%
+  rename(Sample.Type = sample_type)
+
+m  <- b3 %>% 
+  left_join(a2, by = c('sample_id', 'newdate', 'Sample.Type'))
+
+m1 <- m %>% 
+  select(sample_id, newdate, Sample.Type, Dates_a)
+
+m11 <- m1 %>% 
+  select(sample_id, newdate, Sample.Type)
+
+sum(is.na(m1$Dates_a))
+
+m2 <- m1 %>% 
+  filter(!grepl('.', Dates_a))
+
+# This result suggests that all the redcap culture sample IDs and sample types and enrolled data match with the field ID data ...
+# ... Only 237_6 was included in the field data base but not the redcap culture data ...
+# ... 237 is an enrolled subject for 1 time, it should not have a _6 sample
+# From the above code we know all the culture redcap sample ID can be found in field ID, not sure if all the field ID can be found in culture redcap
+
+m3  <- a2 %>% 
+  left_join(b3, by = c('sample_id', 'newdate', 'Sample.Type'))
+
+m4 <- m3 %>% 
+  select(sample_id, newdate, Sample.Type)
+
+sum(is.na(m4$Date.of.sample.collection))
+
+m5 <- m4 %>% 
+  filter(!grepl('.', newdate))
+# m5 are the samples that were included in the field_id but not included in the redcap culture
+# m4 gives all the sample ID that are in field ID but not in culture sample redcap
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
