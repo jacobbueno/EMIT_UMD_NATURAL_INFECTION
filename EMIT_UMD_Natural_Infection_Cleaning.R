@@ -20,13 +20,11 @@ sessionInfo() # for reproducibility
 # Now pasting code from Jing Yan and Don Milton that was used in previous work on the EMIT UMD data.
 # The goal here is to review their script and improve the clarity
 
-#### "Merge_1-3.R-update" ####
+#### Using Jing and Dr. Milton's "Merge_1-3.R-update.R" script ####
 
-# By Jing Yan & Don Milton
-# January 20-25, 2016
-# Purpose: follow the data analysis plan in folder EMIT_Data_Analysis.
+# From Jing Yan & Don Milton; January 20-25, 2016
+# Purpose: follow the data analysis plan in folder EMIT_Data_Analysis (described below)
 
-##
 # Purpose, input and output files: 
 #   1.	Read in Clinical (encounter and questionnaire) data;
 #       a.	Count rows and columns check that there are no missing required fields (e.g. date of visit, subject_id). 
@@ -86,7 +84,7 @@ sessionInfo() # for reproducibility
 #### Read in the clinical database ####
 
 clinical_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
-clinical_umd<- read.csv(clinical_in_file)
+clinical_umd <- read.csv(clinical_in_file)
 
 # Let's produce some summary information about this clinical_umd df
 
@@ -110,37 +108,44 @@ print(sum(clinical_umd$redcap_event_name=='g2_run_1_arm_1') +
 print(addmargins(with(clinical_umd, table(redcap_event_name, exclude = c()))))
 
 # Note that one subject was enrolled twice!
-print(select(filter(clinical_umd,field_subj_id==47|field_subj_id==187),
+print(select(filter(clinical_umd, field_subj_id == 47 | field_subj_id == 187),
              field_subj_id, date_visit, redcap_event_name, date_g2_1, rapid_flu___1, rapid_flu___2, spec_note))
 # This means that there was actually one less unique invidivual than we have unique subjects ids.
-# Subject IDs are for person-illness-episodes, not persons.
+# We note the above and treat subject IDs as person-illness-episodes, not persons.
 
 # Clinical data split into screening visits and g2 runs and remerged to get one row per encounter date
 clinical_min <- clinical_umd %>% 
-  select(field_subj_id,redcap_event_name,date_visit,date_g2_1,rapid_flu___3,rapid_flu_loc,body_temp) %>% 
-  filter(grepl('visit', redcap_event_name)) %>% 
-  filter(grepl('^g2_run',redcap_event_name))
+  select(field_subj_id, redcap_event_name, date_visit, date_g2_1, rapid_flu___3, rapid_flu_loc, body_temp)
+
+clinical_visit <- clinical_min %>% 
+  filter(grepl('visit', redcap_event_name))
+
+clinical_g2 <- clinical_min %>% 
+  filter(grepl('^g2_run', redcap_event_name))
 
 clinical_visit$visit_num <- ifelse(clinical_visit$redcap_event_name == 'visit_1_part_a_arm_1', 1, 
-                                   ifelse(clinical_visit$redcap_event_name == 'screen_visit_2_arm_1',2,3)) 
+                                   ifelse(clinical_visit$redcap_event_name == 'screen_visit_2_arm_1', 2, 3)) 
 
-clinical_g2$g2_run <- ifelse(clinical_g2$redcap_event_name=='g2_run_1_arm_1', 1, 
-                             ifelse(clinical_g2$redcap_event_name=='g2_run_2_arm_1',2,3))
+clinical_g2$g2_run <- ifelse(clinical_g2$redcap_event_name == 'g2_run_1_arm_1', 1, 
+                             ifelse(clinical_g2$redcap_event_name == 'g2_run_2_arm_1', 2, 3))
 
+# Find the G2 first time sample collection data
 clinical_g2_1 <- clinical_g2 %>% 
-  filter(grepl('^g2_run_1',redcap_event_name)) %>%
+  filter(grepl('^g2_run_1', redcap_event_name)) %>%
   select(field_subj_id, redcap_event_name, date_g2_1,g2_run) %>%
   rename(date_visit = date_g2_1)
 
+# Find the G2 2nd and 3rd time sample collection data
 clinical_g2_23 <- clinical_g2 %>%
   filter(!grepl('^g2_run_1',redcap_event_name)) %>% 
   select(field_subj_id,redcap_event_name,date_visit,g2_run)
 
+# Merge the G2 sample collection visits (1, 2, and 3) together into the clinical_g2 df
 clinical_g2 <- merge(clinical_g2_1, clinical_g2_23, 
                      c('field_subj_id','date_visit','redcap_event_name','g2_run'), all=TRUE)
 
 sum_clinical <- merge(select(clinical_visit, -contains("date_g2_1")), clinical_g2, 
-                      c('field_subj_id','date_visit'), all=TRUE)
+                      c('field_subj_id', 'date_visit'), all = TRUE)
 
 sum_clinical$enrolled <- ifelse(!is.na(sum_clinical$g2_run), TRUE, FALSE)
 
@@ -162,10 +167,10 @@ print(addmargins(with(sum_clinical, table(enrolled, clinical.i, exclude = c())))
 print(addmargins(with(sum_clinical, table(visit_num, g2_run, exclude = c()))))
 
 # Total number of g2 runs (sum of runs 1, 2, and 3) according to initial clinical data
-sum(sum_clinical$g2_run>0)
+sum(sum_clinical$g2_run > 0)
 
-#Variables in sum_clinical
-sum_clinical$date_visit <- as.Date(sum_clinical$date_visit)
+# Fix the format of the date variable in sum_clinical
+sum_clinical$date_visit <- as.Date(as.character(sum_clinical$date_visit), format = "%m/%d/%y")
 print(head(tbl_df(sum_clinical)))
 
 #### Working with G2 Log Data ####
@@ -179,13 +184,13 @@ print(ncol(g2_log))
 # Date Entry Error Correction
 # Subject_id 284 g2 collection_2_arm_1 was entered as 2013-03-17 but baseline was on 2013-02-16 and collection_3 was 2013-02-18.
 # Therefore recode collection_2 date to February from March (i.e. to 2013-02-17).
-print(select(filter(g2_log,subject_id==284), subject_id, redcap_event_name, start_dt))
-g2_log$start_dt[which(g2_log$subject_id==284 & g2_log$start_dt=='2013-03-17', arr.ind=TRUE)] <- '2013-02-17'
+print(select(filter(g2_log, subject_id == 284), subject_id, redcap_event_name, start_dt))
+g2_log$start_dt[which(g2_log$subject_id == 284 & g2_log$start_dt == '2013-03-17', arr.ind = TRUE)] <- '2013-02-17'
 
 # Number of subject(s) without a start_dt
-print(sum((g2_log$start_dt)==""))
+print(sum((g2_log$start_dt) == ""))
 
-id <- as.integer(select(filter(g2_log, start_dt==""), subject_id)) 
+id <- as.integer(select(filter(g2_log, start_dt == ""), subject_id)) 
 
 # G-II log for cases without start date
 print(tbl_df(select(filter(g2_log, subject_id==id), 
@@ -197,12 +202,12 @@ print(tbl_df(select(filter(g2_log, subject_id==id),
                     subj_min)))
 
 # Clinical data for cases without start date 
-print(tbl_df(filter(sum_clinical,field_subj_id==id)))
+print(tbl_df(filter(sum_clinical, field_subj_id == id)))
 
 # Data Entry Error Correction
 # Remove empty record identified as having no start_dt, subject_id:
-g2_log$subject_id[which(g2_log$start_dt=="", arr.ind=TRUE)]
-g2_log <- filter(g2_log,!(g2_log$start_dt)=="")
+g2_log$subject_id[which(g2_log$start_dt == "", arr.ind = TRUE)]
+g2_log <- filter(g2_log, !(g2_log$start_dt) == "")
 
 # Number of rows in g2_log data
 print(nrow(g2_log))
@@ -210,25 +215,26 @@ print(nrow(g2_log))
 print(ncol(g2_log))
 
 # Number of subjects with a coll_arm_1 
-print(sum(g2_log$redcap_event_name=='baseline_and_colle_arm_1'))
+print(sum(g2_log$redcap_event_name == 'baseline_and_colle_arm_1'))
 
 # Number of subjects with a coll_2 arm
-print(sum(g2_log$redcap_event_name=='collection_2_arm_1'))
+print(sum(g2_log$redcap_event_name == 'collection_2_arm_1'))
 
 # Number of subjects with a coll_3 arm
-print(sum(g2_log$redcap_event_name=='collection_3_arm_1'))
+print(sum(g2_log$redcap_event_name == 'collection_3_arm_1'))
 
 g2_log <- g2_log %>%
   rename(date_visit = start_dt)
 
 g2_log_min <- g2_log %>% 
-  select(subject_id,redcap_event_name,date_visit,subj_min)
+  select(subject_id, redcap_event_name, date_visit, subj_min)
 
-g2_log_min$g2_coll_num <- ifelse(g2_log_min$redcap_event_name=='baseline_and_colle_arm_1', 1, 
-                              ifelse(g2_log_min$redcap_event_name=='collection_2_arm_1',2,3)) 
+g2_log_min$g2_coll_num <- ifelse(g2_log_min$redcap_event_name == 'baseline_and_colle_arm_1', 1, 
+                              ifelse(g2_log_min$redcap_event_name == 'collection_2_arm_1', 2, 3)) 
 
 # Numbers of subjects by g2 collection event
 print(ftable(addmargins(with(g2_log_min, table(redcap_event_name, g2_coll_num, exclude = c())))))
+# This is an important print out of the number of G2 collection events by visit number.
 
 g2_log_min <- g2_log_min %>% 
   select(subject_id, date_visit, g2_coll_num, subj_min) %>%
@@ -236,17 +242,23 @@ g2_log_min <- g2_log_min %>%
 
 g2_log_min$g2lm.i <- TRUE #indicator for preseence of record in g2_log_min
 
-g2_log_min$date_visit<- as.Date(g2_log_min$date_visit)
+g2_log_min$date_visit <- as.Date(g2_log_min$date_visit)
 
-#Variables in g2_log_min
+# Check the variable names in g2_log_min
 print(head(tbl_df(g2_log_min)))
 
 #### MERGE CLINICAL AND G2-LOG DATA ####
-merge1 <- merge(sum_clinical, g2_log_min, by = c('field_subj_id','date_visit'), all=TRUE)
 
-# Merge 1 check for record sources
+# Here we will merge the sum_clinical df and the g2_log_min df
+# These dfs were manipulated in the previous two sections of code in this script ...
+# ... in preparation for this merging step.
+
+merge1 <- merge(sum_clinical, g2_log_min, by = c('field_subj_id', 'date_visit'), all=TRUE)
+
+# Merge 1 check the dimensions agains the source dfs
 print(ftable(addmargins(with(merge1, table(clinical.i, g2lm.i, exclude=c())))))
 
+# Select the variables of importance and their order. 
 merge1 <- merge1 %>% 
   select(field_subj_id, 
          date_visit, 
@@ -260,47 +272,52 @@ merge1 <- merge1 %>%
          rapid_flu_loc, 
          body_temp)
 
-# Do the g2_coll_num match with the g2_run? They should match 
+# Do the g2_coll_num match with the g2_run? They should match.
 identical(merge1$g2_coll_num, merge1$g2_run)
+# However they don't match! The next lines will address the discrepancies
 
-# If there is no g2 run then the collection number and run number are set to zero here. 
+# If there is no g2 run then the collection number (g2_coll_num) and run number (g2_run) ...
+# ... are set to zero here to match the g2_run variable.
 merge1$g2_coll_num[is.na(merge1$g2_coll_num)] <- 0
 merge1$g2_run[is.na(merge1$g2_run)] <- 0
 merge1$indicator <- ifelse(merge1$g2_coll_num == merge1$g2_run, 1, 0) 
 i <- which(merge1$indicator == 0, arr.ind = TRUE)
 
-# Since they don't match, find the unmatched subject, and shows which row and column the subject(s) located:
+# Since g2_coll_num and g2_run don't match, find the unmatched subject, ...
+# ... and show which row and column the subject(s) located:
 i
-
-# Subject that does not match field_subj_idå
+# Subject that does not match field_subj_id
 merge1$field_subj_id[i]
+# Initiate data editing to resolve this discrepancy.
 
-#### Data Editing ####
+## Data Editing ##
 
-#Subject 69 
-merge1$field_subj_id[which(merge1$indicator==0,arr.ind=TRUE)]
+# Subject 69 has data that doesn't match in the g2_coll_num and g2_run variables (which should be the same)
+# The g2_coll_num variable comes from the clinical database df and the g2_run var comes from the g2_log df. 
+
+merge1$field_subj_id[which(merge1$indicator == 0, arr.ind = TRUE)]
 
 # Subject 69 had a second g2 visit in clinical data, but did not provide sample - 
 # See REDCap comments for details - removed from final analysis data sets
 merge1 <- merge1 %>% 
-  filter(indicator==1)
+  filter(indicator == 1)
 merge1 <- merge1 %>% 
   select(-indicator)
 
 # Recheck after delection: Merge 1 record sources
-print(ftable(addmargins(with(merge1, table(clinical.i, g2lm.i, exclude=c())))))
+print(ftable(addmargins(with(merge1, table(clinical.i, g2lm.i, exclude = c())))))
 
 # Number of rows in edited merged data
 print(nrow(merge1))
 
 # Number of subjects with a first visit
-print(sum(merge1$visit_num==1, na.rm = TRUE))
+print(sum(merge1$visit_num == 1, na.rm = TRUE))
 
 # Number of subjects with a second screen
-print(sum(merge1$visit_num==2, na.rm = TRUE))
+print(sum(merge1$visit_num == 2, na.rm = TRUE))
 
 # Number of subjects with a third screen
-print(sum(merge1$visit_num==3, na.rm = TRUE))
+print(sum(merge1$visit_num == 3, na.rm = TRUE))
 
 # Number of unique subjects
 print(length(unique(merge1$field_subj_id)))
@@ -310,41 +327,38 @@ sum(merge1$visit_num == 1,na.rm = TRUE) +
   sum(merge1$visit_num == 2,na.rm = TRUE) + 
   sum(merge1$visit_num == 3,na.rm = TRUE)
 
-# Number of subjects with a 1st g2 run...
-
+# Number of subjects with a 1st g2 run ...
 # g2_num:
-print(sum(merge1$g2_run==1))
-
+print(sum(merge1$g2_run == 1))
 # g2_coll_num:
-print(sum(merge1$g2_coll_num==1))
+print(sum(merge1$g2_coll_num == 1))
 
-# Number of subjects with a 2nd g2 run; g2_num
-print(sum(merge1$g2_run==2))
+# Number of subjects with a 2nd g2 run ...
+# g2_num:
+print(sum(merge1$g2_run == 2))
+# g2_coll_num:
+print(sum(merge1$g2_coll_num == 2))
 
-# g2_coll_num
-print(sum(merge1$g2_coll_num==2))
+# Number of subjects with a 3rd g2 run
+# g2_num:
+print(sum(merge1$g2_run == 3))
+# g2_coll_num: 
+print(sum(merge1$g2_coll_num == 3))
 
-# Number of subjects with a 3rd g2 run; g2_num
-print(sum(merge1$g2_run==3))
-    
-# g2_coll_num 
-print(sum(merge1$g2_coll_num==3))
-
-# Total number of g2 runs; based on g2_num
-print(sum(!merge1$g2_run==0)) 
-
-# based on g2_coll_num
-print(sum(!merge1$g2_coll_num==0))
+# Total number of g2 runs
+# based on g2_num:
+print(sum(!merge1$g2_run == 0)) 
+# based on g2_coll_num:
+print(sum(!merge1$g2_coll_num == 0))
 
 # Total number of screenings without a g2 run whether or not later enrolled ...
 # ... based on g2_num
-print(sum(merge1$g2_run==0))
-
+print(sum(merge1$g2_run == 0))
 # ... based on g2_coll_num
-print(sum(merge1$g2_coll_num==0))
+print(sum(merge1$g2_coll_num == 0))
 
-t1 <- sum(!merge1$g2_run==0) + sum(merge1$g2_run==0)
-t2 <- sum(!merge1$g2_coll_num==0) + sum(merge1$g2_coll_num==0)
+t1 <- sum(!merge1$g2_run == 0) + sum(merge1$g2_run == 0)
+t2 <- sum(!merge1$g2_coll_num == 0) + sum(merge1$g2_coll_num == 0)
 
 # Total number of encounters ... 
 # ... based on g2_run:
@@ -364,23 +378,23 @@ print(head(tbl_df(merge1)))
 
 # Input Field Sample Data
 field_db_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
-field.db<- read.csv(field_db_in_file,as.is=T)
+field.db <- read.csv(field_db_in_file, as.is = T)
 
 print(head(tbl_df(field.db)))
 
 field.db1 <- field.db %>% 
-  select(SUBJECT_IDENTIFIER, SAMPLE_ID,COLLECTION_DT ,TYPE_NAME) %>%
+  select(SUBJECT_IDENTIFIER, SAMPLE_ID, COLLECTION_DT, TYPE_NAME) %>%
   rename(field_subj_id = SUBJECT_IDENTIFIER) %>%
   rename(sample_id = SAMPLE_ID) %>%
   rename(date_visit = COLLECTION_DT) %>%
   rename(sample_type = TYPE_NAME)
-field.db1$field.db1.i <-TRUE #indicator that data is in field.db1
+field.db1$field.db1.i <- TRUE #indicator that data is in field.db1
 
 # Input field sample field.db file
 field_db_in_file
+
 # Number of rows in field sample database
 print(nrow(field.db1))
-
 # Number of columns in database (selected columns)
 ncol(field.db1)
 
@@ -388,21 +402,21 @@ ncol(field.db1)
 print(addmargins(with(field.db1, table(sample_type, field.db1.i, exclude = c()))))
 
 # Number of rows that have a missing sample_type
-print(sum(field.db1$sample_type==""))
+print(sum(field.db1$sample_type == ""))
 
 # Number of rows that have a missing date_visit
-print(sum(field.db1$date_visit==""))
+print(sum(field.db1$date_visit == ""))
 
 # Number of rows that have a NA for date_visit
 print(sum(is.na(field.db1$date_visit)))
 
 # Number of subjects that have a missing sample_id
-print(sum(field.db1$sample_id==""))
+print(sum(field.db1$sample_id == ""))
 
 # Number of subjects that have a NA for sample_id
 print(sum(is.na(field.db1$sample_id)))
 
-field.db1$date_visit <- as.Date(field.db1$date_visit, format="%m/%d/%Y")
+field.db1$date_visit <- as.Date(field.db1$date_visit, format = "%m/%d/%Y")
 
 ## Data Editing ##
 
@@ -410,59 +424,70 @@ field.db1$date_visit <- as.Date(field.db1$date_visit, format="%m/%d/%Y")
 # ... erroneously given a new ID number. However the samples are still shown in the field database as 225.
 # Therefore, I am recoding the subject id to 250 but leaving the sample_id as 225_x -- at least for now
 
-field.db1$field_subj_id <- with(field.db1, ifelse(field_subj_id == 225,250, field_subj_id))
+field.db1$field_subj_id <- with(field.db1, ifelse(field_subj_id == 225, 250, field_subj_id))
 print(tbl_df(filter(field.db1, field_subj_id == 250)))
 
-# Recode date_visit subj 10 sample_id=10_6 
+# Recode date_visit subj 10 sample_id = 10_6 to be correct date of 2012-12-05
 
 # orginal data
-print(tbl_df(filter(field.db1, field_subj_id==10)))
+print(tbl_df(filter(field.db1, field_subj_id == 10)))
 
-field.db1$date_visit <- with(field.db1, ifelse(field_subj_id == 10 & date_visit == as.Date("2012-12-07"), as.Date("2012-12-05"), date_visit))
+field.db1$date_visit <- with(field.db1, 
+                             ifelse(field_subj_id == 10 & date_visit == as.Date("2012-12-07"), 
+                                    as.Date("2012-12-05"), date_visit))
 field.db1$date_visit <- as.Date(field.db1$date_visit, format = "%Y-%m-%d", origin = "1970-01-01")
 
 # recoded data
-print(tbl_df(filter(field.db1,field_subj_id==10)))
+print(tbl_df(filter(field.db1, field_subj_id == 10)))
 
-# Recode date_visit subj 12 sample_id=12_6
+# Recode date_visit subj 12 sample_id = 12_6 to the correct date of 2012-12-10
 
 # orginal data
-print(tbl_df(filter(field.db1,field_subj_id==12)))
+print(tbl_df(filter(field.db1, field_subj_id == 12)))
  
-field.db1$date_visit <- with(field.db1, ifelse(field_subj_id==12 & date_visit==as.Date("2013-02-08"),as.Date("2012-12-10"),date_visit))
+field.db1$date_visit <- with(field.db1, 
+                             ifelse(field_subj_id == 12 & date_visit == as.Date("2013-02-08"), as.Date("2012-12-10"), date_visit))
 field.db1$date_visit <- as.Date(field.db1$date_visit, format = "%Y-%m-%d", origin = "1970-01-01")
 
 # recoded data
-print(tbl_df(filter(field.db1,field_subj_id==12)))
+print(tbl_df(filter(field.db1, field_subj_id == 12)))
 
 # There was no subject 11, 28, 53, 73, or 76; Samples were generated in error.
 # Delete samples for non-existant subjects
-field.db1 <- filter(field.db1, field_subj_id!=11)
-field.db1 <- filter(field.db1, field_subj_id!=28)
-field.db1 <- filter(field.db1, field_subj_id!=53)
-field.db1 <- filter(field.db1, field_subj_id!=73)
-field.db1 <- filter(field.db1, field_subj_id!=76)
+field.db1 <- filter(field.db1, field_subj_id != 11)
+field.db1 <- filter(field.db1, field_subj_id != 28)
+field.db1 <- filter(field.db1, field_subj_id != 53)
+field.db1 <- filter(field.db1, field_subj_id != 73)
+field.db1 <- filter(field.db1, field_subj_id != 76)
 
 # There was no second visit for subj 30; Samples generated in error.
+# Delete samples for subject 30 on 2012-12-18. 
 
-# Delete samples for subject 30 on 2012-12-18. Original data
+# Original data
 print(tbl_df(filter(field.db1, field_subj_id == 30)))
+
+# Make correction
 field.db1 <- field.db1 %>%
   filter(!(field_subj_id == 30 & date_visit == as.Date("2012-12-18"))) 
 
 # Corrected data subject 30
-print(tbl_df(filter(field.db1, field_subj_id==30)))
+print(tbl_df(filter(field.db1, field_subj_id == 30)))
 
 # There was no second visit for subj 120 on 2013-02-08 and sample 120_12 is not in REDCap sample database
+
+# Original data
 print(tbl_df(filter(field.db1, field_subj_id == 120)))
 
-# Sample 120_12 deleted
+# Delete sample 120_12
 field.db1 <- filter(field.db1, sample_id != "120_12")
 
-# Samples (NP only) from erroneous second g2 visit for subject 69 (see above) deleted.
+# Corrected data
+print(tbl_df(filter(field.db1, field_subj_id == 120)))
+
+# Delete  samples (NP only) from erroneous second g2 visit for subject 69 (see above)
 field.db1 <- filter(field.db1, sample_id != "69_6" & sample_id != "69_7")
 
-# End of Data Editing Field Sample Database
+## End of Data Editing Field Sample Database ##
 
 # Number of columns in EDITED filed sample database (selected columns)
 print(ncol(field.db1))
@@ -477,45 +502,47 @@ merge2 <- merge(merge1, field.db1, by = c("field_subj_id", "date_visit"), all = 
 print(head(tbl_df(merge2)))
 
 # Source of data in rows of merge2
-print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude=c())))))
+print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude = c())))))
 
 # Remove all samples that were assigned in the field db but not collected from the unenrolled subjects
 merge2 <- merge2 %>% 
-  filter(!(enrolled==F & sample_type %in% 
+  filter(!(enrolled == F & sample_type %in% 
              c("GII condensate NO mask", "Throat Swab", "Impactor 5 um NO mask", "anterior nasal swab")))
 
 # Source of data in rows of merge2 after removing extraneous samples
-print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude=c())))))
+print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude = c())))))
 
 # Merge2: rows where merge1 was not matched by rows from field.db1
 print(filter(merge2, is.na(field.db1.i)))
 
 # All rows in merge2 for subjects that have some merge1 rows not matching field.db1
 x <- distinct(select(filter(merge2, is.na(field.db1.i)), field_subj_id))
-print(inner_join(merge2, x, by="field_subj_id"))
+print(inner_join(merge2, x, by = "field_subj_id"))
 
 # All rows in field.db1 for subjects that had some merge1 rows not matching field.db1
-print(inner_join(field.db1, x, by="field_subj_id"))
+print(inner_join(field.db1, x, by = "field_subj_id"))
 
 # Subject 135 returned for a second screening visit but was never enrolled. 
 # There is nothing in the REDCap clinical record to explain why no samples in the field DB were associated with the second visit.
 # There are also no samples in the REDCap sample database for subject 135 except 135_1.
-# field_subj_id==135 & date_visit==2013-02-05 deleted
-merge2 <- filter(merge2, !(field_subj_id==135 & date_visit=="2013-02-05"))
 
-# Merge2 rows where field.db1 not matched by rows from merge1
+# As a result, we delete field_subj_id == 135 & date_visit == 2013-02-05 
+merge2 <- filter(merge2, !(field_subj_id == 135 & date_visit == "2013-02-05"))
+
+# Checking merge2 rows where field.db1 not matched by rows from merge1
 print(filter(merge2, is.na(merge1.i)))
 
-# Merge1 rows for subjects who had some field.db1 rows not matching merge1 rows: nrow= "
+# Checking: merge1 rows for subjects who had some field.db1 rows not matching merge1 rows
 x <- distinct(select(filter(merge2, is.na(merge1.i)), field_subj_id))
 nrow(x)
 
-# Table of these rows
+# Checking: Table of these rows
 print(tbl_df(inner_join(merge1, x, by = "field_subj_id")))
 
 # Source of data in rows of merge2 after removing 135_6.
 print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude=c())))))
 
+# Giving an indicator variable to this finalized merge2 df
 merge2$merge2.i <- T
 
 # Head of merge2
@@ -532,29 +559,28 @@ sample_in_file
 
 # Number of rows
 print(nrow(sample_in))
-
 # Number of cols
 print(ncol(sample_in))
 
 sample_in <- sample_in %>%
-  rename(date_visit=dt_visit)
-sample_in$date_visit <- as.Date(sample_in$date_visit, format="%m/%d/%Y")
+  rename(date_visit = dt_visit)
+sample_in$date_visit <- as.Date(sample_in$date_visit, format = "%m/%d/%Y")
 
 # Head of sample_in dataframe after renaming date_visit and setting count_tech as factor
 print(tbl_df(sample_in))
 
 # Number of rows that have a missing sample_id
-print(sum(sample_in$sample_id==""))
+print(sum(sample_in$sample_id == ""))
 
 # Number of rows that have a NA for sample_id
 print(sum(is.na(sample_in$sample_id)))
 
 ## Data Editing ##
-# Samples 69_6 and 69_7 collected for a g2_run = 2 that was not performed. See above. Deleted here.
+# Samples 69_6 and 69_7 collected for a g2_run = 2 that was not performed. See above data editing section. Deleted here.
 # Also, samples 20-1 & 97-9 are typos and duplications. They are also deleted here.
 
 sample_in <- sample_in %>%
-  filter(!(sample_id %in% c("69_6","69_7","20-1","97-9")))
+  filter(!(sample_id %in% c("69_6", "69_7", "20-1", "97-9")))
 sample_in$dt_stained <- with(sample_in, ifelse(sample_id == "20_1" & dt_count == "12/15/2012", "12/15/2012", dt_stained))
 
 collection <- select(sample_in %>% 
@@ -576,7 +602,7 @@ print(nrow(assay2))
 print(ftable(addmargins(with(sample_in, table(redcap_event_name, sample_type, exclude = c())))))
 
 # Head of sample_in samples with no sample_type
-print(head(filter(sample_in, sample_type=="")))
+print(head(filter(sample_in, sample_type == "")))
 
 passage <- select(filter(sample_in, !is.na(passage_1)), 
                   sample_id, 
@@ -603,15 +629,17 @@ passage <- select(passage, sample_id, passpos, validp)
 print(nrow(passage))
 
 # Number of passage assays with missing date of passage
-print(sum(passage$dt_pass==""))
+print(sum(passage$dt_pass == ""))
 
 # Number of valid passage assays
 print(sum(passage$validp))
 
 # Number of invalid passage assays
 print(sum(!passage$validp))
+
 # Number of positive passage assays
 print(sum(passage$passpos, na.rm = T))
+
 # Number of negative passage assays
 print(sum(!passage$passpos, na.rm = T))
 
@@ -628,13 +656,11 @@ print(sum(!(focus2$sample_id == focus2$focus_id)))
 
 # Number of focus1 counts
 print(nrow(focus1))
-
 # Number of focus2 counts
 print(nrow(focus2))
 
 # Number of focus1 rows with no dt_count
 print(sum(focus1$dt_count==""))
-
 # Number of focus2 rows with no dt_count
 print(sum(focus2$dt_count==""))
 
@@ -659,7 +685,7 @@ focus1_24g <- focus1_24g %>%
   rename(ct = ct_24g)
 
 focus1_24w <- focus1 %>% 
-  filter((focus1$plate_type==1 | is.na(focus1$plate_type)) & focus1$count_meth == 2) %>% 
+  filter((focus1$plate_type == 1 | is.na(focus1$plate_type)) & focus1$count_meth == 2) %>% 
   select(-ct_96, -ct_24g)
 
 focus1_24w <- focus1_24w %>%
@@ -674,14 +700,14 @@ focus1_96  <- focus1_96 %>%
 
 focus1_c <- arrange(rbind(focus1_96, focus1_24w, focus1_24g))
 
-focus2$ct_24g <- rowSums(focus2[ , c(11:20)],na.rm=T) / (10*area.g)*area.24*focus2$df/150*1000
+focus2$ct_24g <- rowSums(focus2[ , c(11:20)], na.rm = T) / (10*area.g)*area.24*focus2$df/150*1000
 
 focus2$ct_24w <- focus2$well*focus2$df/150*1000
 
-focus2$ct_96  <- rowSums(focus2[ , c(11:13)], na.rm=T)*focus2$df/150*1000
+focus2$ct_96  <- rowSums(focus2[ , c(11:13)], na.rm = T)*focus2$df/150*1000
 
 focus2_24g <- focus2 %>%
-  filter((focus2$plate_type == 1 | is.na(focus2$plate_type)) & focus2$count_meth==1) %>% 
+  filter((focus2$plate_type == 1 | is.na(focus2$plate_type)) & focus2$count_meth == 1) %>% 
   select(-ct_96, -ct_24w)
 
 focus2_24g <- focus2_24g %>%
@@ -720,18 +746,15 @@ summary(focus)
 
 #### MERGE CULTURE RESULTS ####
 
-culture_results <- merge(collection, passage, by="sample_id", all=T)
-culture_results <- merge(culture_results, focus, by="sample_id", all=T)
+culture_results <- merge(collection, passage, by = "sample_id", all = T)
+culture_results <- merge(culture_results, focus, by = "sample_id", all = T)
 
 # N rows collection
 print(nrow(collection))
-
 # N rows passage
 print(nrow(passage))
-
 # N rows focus
 print(nrow(focus))
-
 # N rows culture_results
 print(nrow(culture_results))
 
@@ -745,7 +768,7 @@ culture_results$passage.i <- ifelse(is.na(culture_results$validp), F, T)
 culture_results$cr.i <- TRUE #Indicator for record present in culture_results
 
 # Samples with (1) and without (0) passage assays and focus assays
-print(ftable(addmargins(with(culture_results, table(sample_type, passage.i, focus.i, exclude=c()))))) 
+print(ftable(addmargins(with(culture_results, table(sample_type, passage.i, focus.i, exclude = c()))))) 
 ## Note: All samples should have a sample type; anterior nasal swabs & impactors should not have culture assays ##
 
 #### PROBLEMATIC SAMPLES THAT NEED TO BE REVIEWED IN NOTEBOOKS AND REDCAP ####
@@ -769,11 +792,10 @@ print(tbl_df(culture_results %>%
 
 # G-II condensate with a focus assay but no passage (even invalid) assay, or with a passage but no focus assay
 print(tbl_df(culture_results %>% 
-               filter(condensate==T, (focus.i==T & passage.i==F) | (focus.i==F & passage.i==T))))
+               filter(condensate == T, (focus.i == T & passage.i == F) | (focus.i == F & passage.i == T))))
 
 # Culture_results
 print(head(tbl_df((culture_results))))
-summarise(culture_results)
 
 #### Merge3 = merge of merge2 with (culture_results from REDCap) by sample_id (only) ####
 # x=merge2, y=culture_results
@@ -788,23 +810,20 @@ merge3 <- merge(merge2, culture_results, c('sample_id'), all = TRUE)
 
 # Number of rows in merge2
 print(nrow(merge2))
-
 # Number of rows in culture_results
 print(nrow(culture_results))
-
 # Number of rows in merge3
 print(nrow(merge3))
-
 #Number of cols in merge3
 print(ncol(merge3))
 
 print(head(tbl_df(merge3)))
 
 # Table to check source of records after merge 3
-print(ftable(addmargins(with(merge3, table(merge2.i, cr.i, exclude=c())))))
+print(ftable(addmargins(with(merge3, table(merge2.i, cr.i, exclude = c())))))
 
 # Do date_visit match?
-d.err <- filter(merge3, date_visit.x!=date_visit.y | is.na(date_visit.x!=date_visit.y))
+d.err <- filter(merge3, date_visit.x != date_visit.y | is.na(date_visit.x != date_visit.y))
 
 #Number of samples where the date_visit.x (merge2) not equal date_visit.y (culture_results)
 print(nrow(d.err))
@@ -837,10 +856,6 @@ print(ftable(addmargins(with(merge3,
 
 # All non-matching sample types seem to be due to missing (NA) values.
 
-# Samples in merge3 where culture_results data had no match in merge2 (field data)
-x <- filter(merge3, cr.i == T, is.na(merge2.i))
-print(select(x, sample_id))
-
 # All sample ids begining with 237 in merge3
 print(filter(merge3, grepl("^237", sample_id)))
 
@@ -848,6 +863,10 @@ print(filter(merge3, grepl("^237", sample_id)))
 print(filter(culture_results, grepl("^237", sample_id)))
 
 # Sample 237_6 is an enrolled roommate, enrolled based on fever, therefore second NP swab should be in the lab.
+
+# Samples in merge3 where culture_results data had no match in merge2 (field data)
+x <- filter(merge3, cr.i == T, is.na(merge2.i))
+print(select(x, sample_id))
 
 # All sample ids begining with 301 in merge3
 print(filter(merge3, grepl("^301", sample_id)))
@@ -860,9 +879,9 @@ print(filter(culture_results, grepl("^301", sample_id)))
 
 # All samples collected on same date as subject 301
 
-x <- select(filter(merge3, field_subj_id.y=="301"), date_visit.x)
+x <- select(filter(merge3, field_subj_id.y == "301"), date_visit.x)
 
-y <- right_join(merge3, x, by="date_visit.x")
+y <- right_join(merge3, x, by = "date_visit.x")
 
 # Throat and Condensate samples from enrolled subject on the same day as 301
 print(filter(y, sample_type.x %in% c("Throat Swab", "GII condensate NO mask")))
@@ -876,7 +895,7 @@ print(ftable(addmargins(with(merge3, table(merge2.i, cr.i, exclude = c())))))
 
 merge3 <- mutate(
   merge3, 
-  subject_id = ifelse((!is.na(field_subj_id.x)|field_subj_id.x==""), 
+  subject_id = ifelse((!is.na(field_subj_id.x) | field_subj_id.x == ""), 
                       field_subj_id.x, 
                       field_subj_id.y),
   sample_type = ifelse((sample_type.x %in% 
@@ -894,22 +913,23 @@ merge3 <- merge3 %>%
   select(-contains(".x"), -contains(".y"))
 
 # Number of rows in merge3 after clean-up with no sample type
-print(nrow(filter(merge3, is.na(sample_type)|sample_type=="")))
+print(nrow(filter(merge3, is.na(sample_type) | sample_type == "")))
 
 # Number of rows in merge3 after clean-up with no subject id
-print(nrow(filter(merge3, is.na(subject_id)|subject_id=="")))
+print(nrow(filter(merge3, is.na(subject_id) | subject_id == "")))
 
 # Number of rows in merge3 after clean-up with no date visit
 print(nrow(filter(merge3, is.na(date_visit))))
 
 # Samples without sample type
 print(filter(merge3, is.na(sample_type)))
+# What to do with these?
 
 ## For the group not enrolled, figure out how to keep the one NP swabs that was sent to the lab and discard the other record.
 
 # Examine the first visit to see which NP samples were cultured
 
-np <- select(filter(merge3, np==T|sample_type == "Nasopharyngeal swab"), 
+np <- select(filter(merge3, np == T|sample_type == "Nasopharyngeal swab"), 
              subject_id, 
              sample_id, 
              enrolled, 
@@ -920,19 +940,19 @@ np <- select(filter(merge3, np==T|sample_type == "Nasopharyngeal swab"),
 np1 <- np %>% 
   filter(visit_num == 1)
 
-np1a <- select(mutate(np1, cultured=!is.na(validp)|!is.na(ct)), 
+np1a <- select(mutate(np1, cultured = !is.na(validp) | !is.na(ct)), 
                sample_id,
                subject_id,
                cultured)
 
-np1a <- select(separate(np1a, sample_id, c("id","sample.id"),"_"), 
+np1a <- select(separate(np1a, sample_id, c("id", "sample.id"), "_"), 
                subject_id, 
                sample.id, 
                cultured)
 
 np1a.s <- spread(np1a, sample.id, cultured)
 
-names(np1a.s)[2:length(names(np1a.s))] <- paste("sample", names(np1a.s)[2:length(names(np1a.s))], sep="_")
+names(np1a.s)[2:length(names(np1a.s))] <- paste("sample", names(np1a.s)[2:length(names(np1a.s))], sep = "_")
 
 print(summary(np1a.s))
 
@@ -945,17 +965,17 @@ print(summary(np1a.s))
 
 np <- np %>%
   mutate(sample_id = 
-           ifelse(subject_id==250 & visit_num==2, paste(sample_id,"a",sep=""), sample_id)
+           ifelse(subject_id == 250 & visit_num == 2, paste(sample_id, "a", sep = ""), sample_id)
          )
 
 np.a <- select(mutate(np, cultured = !is.na(validp)|!is.na(ct)), sample_id, subject_id, cultured)
-np.a <- select(separate(np.a, sample_id, c("id", "sample.id"),"_"), subject_id, sample.id, cultured)
+np.a <- select(separate(np.a, sample_id, c("id", "sample.id"), "_"), subject_id, sample.id, cultured)
 np.a.s <- spread(np.a, sample.id, cultured)
-names(np.a.s)[2:length(names(np.a.s))] <- paste("sample",names(np.a.s)[2:length(names(np.a.s))], sep="_")
+names(np.a.s)[2:length(names(np.a.s))] <- paste("sample", names(np.a.s)[2:length(names(np.a.s))], sep = "_")
 print(summary(np.a.s))
 
-# Subjects with sample_6 cultured or subject_id=250 (after reassigning subject 225 to subject 250)
-print(filter(np.a.s,sample_6==T|subject_id==250))
+# Subjects with sample_6 cultured or subject_id = 250 (after reassigning subject 225 to subject 250)
+print(filter(np.a.s, sample_6 == T|subject_id == 250))
 
 # All samples for subject 247
 print(filter(merge3, 
@@ -989,4 +1009,4 @@ samples.cc <- merge3 %>%
          rapid_flu_loc, 
          body_temp)
 
-write.csv(samples.cc, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data.csv")
+saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
