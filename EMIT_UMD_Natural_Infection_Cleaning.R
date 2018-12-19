@@ -1312,6 +1312,8 @@ names(a1)[4] = "Sample.Type"
 a2 <- a1 %>% 
   mutate(newdate = as.Date(Dates_a, format = '%m/%d/%Y'))
 
+#### READ in and work with the *UMD SAMPLES DATABASE (REDCAP DATA)* ####
+
 # Read in redcap_culture data
 b <- read.csv(sample_in_file, as.is = T)
 
@@ -1354,27 +1356,251 @@ sum(is.na(m4$Date.of.sample.collection))
 m5 <- m4 %>% 
   filter(!grepl('.', newdate))
 # m5 are the samples that were included in the field_id but not included in the redcap culture
-# m4 gives all the sample ID that are in field ID but not in culture sample redcap
 
+# There is no output for this section - rather this is part of the data checking and exploratory analysis. 
+# A report can be generated from the objects in this piece of the script if desired. 
 
+#### **** Using Script: Jing and Dr. Milton's "Subtype analysis.R" script **** ####
 
+## Original file information:
 
+# "Subtype analysis.R
+# by Jing Yan & Don Milton
+# Jan 24, 2016 -  
+# Purpose: Sorting and analyze the sample subtypes from Lab data. 
+# ... The types were based on the subtypes table on box in ...
+# ... folder: EMIT_Date_Analysis. 
+#________________________________________________________
+#  Procedures: 
+#  1. We input the subtype part I and subtype part II from the folder InputFiles_UMD/PCR_9.16.2015 
+#     Files: '2015.09.15 Subtyping part I.csv' and '2015.09.15 Subtyping part II.csv'
+#  2. We combine the part1 and part2, the rows equal to the sum of part1 and part2
+#  3. We remove the rows within the data (e.g. reference, calibration, etc.) not needed for analysis
+#  4. Assign a new column for subject ID, and another column for sample type 
+#  5. Assign any subtype with "No Ct" as False, and the other ones with value as True (after checking for very high Ct values)
+#  6. Determine the sample type based on the combination of T and F
+#  7. Assign each sample type a different integer (1-10),check if all the subject has a number assigned based on subtype
+#  8. We remove the subject with duplicated data (with same subject ID and sample type)
+#  9. For the subject with multiple experiments but different sample type, pick them out and do case by case analysis
+# 10. Combine the selected experiments with the other subjects with unique experiment( final_subtype)
+# 11. Output (save) dataframe as EMIT_subtypes.RDS with limited number of variables. 
+#________________________________________________________
 
+#### READ in and work with the *"2016.06.17 1st visit NP swab subtyping.csv" df* ####
 
+part1 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR Results/2016.06.17 1st visit NP swab subtyping.csv', as.is = T)
+part1 <- part1 %>% 
+  select(-Well, -Well.Type, -Threshold..dR.)
 
+# Number of rows in part11 file
+print(nrow(part1))
+# Number of columns in part11 file
+print(ncol(part1))
 
+# Remove the rows within the data (e.g. reference, calibration, etc.) not needed for analysis
+m1 <- part1 %>% 
+  filter(Ct..dR. != 'Reference') %>% 
+  filter(!grepl('[A-Z]_[A-Z]', Well.Name)) %>% 
+  filter(!grepl('PosControl', Well.Name)) %>% 
+  mutate(subject_id = gsub('_1_[0-Z]*[0-Z]*[0-Z]*', '', Well.Name)) %>% # gen new col for subject_ID which can be obtained from sample_ID 
+  mutate(subject_id = gsub('_[0-Z]*', '', subject_id))
+m1$Experiment <- as.factor(m1$Experiment)
 
+# Number of subj-exp in merged data
+print(nrow(m1 %>% 
+             distinct(subject_id)))
 
+# Identify each subtype e.g. A, B, H3,give a new column called types
+m7 <- m1 %>% 
+  mutate(types = gsub('[0-9]*_1_', '', Well.Name)) %>% 
+  mutate(types = gsub('1_', '', types))
 
+m7$subject_id <- as.numeric(m7$subject_id)
 
+m7 <- m7 %>%
+  arrange(subject_id) # order the data based on subject_id
 
+# Number of rows in the sorted subtype file
+print(nrow(m7))
+# Number of columns in the sorted subtype file
+print(ncol(m7))
 
+# Examine the Ct Values by type
+m7$Ct <- as.double(m7$Ct..dR.)
+print(filter(m7, !is.na(Ct)) %>% 
+        group_by(types) %>% 
+        summarise(avg = mean(Ct), mx = max(Ct)))
 
+# Reactions with very high Ct values (>= 40) -- double check these, if there are any:
+suspects <- filter(m7, Ct >= 40)
+print(suspects)
 
+m7$pos <- with(m7, ifelse(Ct..dR. == "No Ct", F, T)) # Considered Positive if any Ct value
 
+m7 <- m7 %>%
+  arrange(subject_id, types, Ct)
 
+m7.a <- m7 %>% 
+  group_by(subject_id, types) %>% 
+  summarise(n = n())
 
+m7.b <- m7.a %>% 
+  filter(n >= 2) # find subj with more than one result
 
+m7.c <- m7.b %>%
+  inner_join(m7, by = c('subject_id', 'types')) #get type data for the subj with more than one type result
 
+## Getting a df with true or false listed for each subtype for each subject_id, where the vars are the subtypes and the observations are the subject_ids
+
+m7.c <- m7.c %>%
+  arrange(subject_id, types, Ct) %>% 
+  select(-n) %>% 
+  distinct(subject_id, types, .keep_all = TRUE)
+
+m7.c2 <- m7 %>%
+  anti_join(m7.c, by = c('subject_id', 'types'))
+
+m7 <- m7.c %>%
+  full_join(m7.c2) %>%
+  arrange(subject_id, types, Ct)
+
+m7$Experiment <- as.factor(m7$Experiment)
+
+m7 <- m7 %>% 
+  distinct(subject_id, types, .keep_all = T)
+
+m7_1 <- m7 %>% 
+  select(subject_id, types, pos) 
+
+m7.s <- spread(m7_1, key = types, value = pos) # cols = types, expt = rows
+
+# Number of subject - experiments
+print(nrow(m7.s))
+# This m7.s gives the final set of subject_ids with their subtype classification
+
+## Adding some additional variables to the m7.s df to further classify the observations
+
+m7.s$type.sub.H1 <- with(m7.s, ifelse(A & H1, T, F)) # if A and H1 then subtype = H1
+
+m7.s$type.sub.H3 <- with(m7.s, ifelse(A & H3, T, F)) # if A and H3 then subtype = H3
+
+m7.s$type.sub.PH1 <- with(m7.s, ifelse(A & PA & PH1, T, F))
+
+m7.s$type.B <- with(m7.s, ifelse(B, T, F))
+
+m7.s$type.H3N2.and.B <- with(m7.s, ifelse(B & type.sub.H3, T, F))
+
+m7.s$type.H3N2.and.PH1 <- with(m7.s, ifelse(type.sub.H3 & type.sub.PH1, T, F))
+
+m7.s$type.B.and.PH1 <- with(m7.s, ifelse(type.B & type.sub.PH1, T, F))
+
+m7.s$type.sub.indet <- with(m7.s, ifelse(((A | H3 | H1 | PH1 | PA) # any one of the A reactions
+                                            & !(type.sub.H3|type.sub.H1|type.sub.PH1)), T, F)) # & did not meet a subt def
+
+m7.s$type.neg <- with(m7.s, ifelse(RP & # RP positive w/o another pos is a true negative reaction.
+                                      !(A|B|H3|PH1|PA), T, F))
+
+m7.s$type.badass <- with(m7.s, ifelse(!RP & # RP negative and everything else neg is a bad assay.
+                                       !(A | H3 | H1 | PH1 | PA  | B ), T, F))
+
+## Assign a number code to each possible combination of results (among those observed)
+
+m7.s$num = NA
+m7.s$num[m7.s$type.sub.H1 == T] = 1
+m7.s$num[m7.s$type.sub.H3 == T] = 2
+m7.s$num[m7.s$type.sub.PH1 == T] = 3
+m7.s$num[m7.s$type.B == T] = 4
+m7.s$num[m7.s$type.neg == T] = 5
+m7.s$num[m7.s$type.H3N2.and.B == T] = 6
+m7.s$num[m7.s$type.H3N2.and.PH1 == T] = 7
+m7.s$num[m7.s$type.B.and.PH1 == T] = 8
+m7.s$num[m7.s$type.sub.indet == T] = 9
+m7.s$num[m7.s$type.badass == T] = 10
+
+# Number of rows without a number assigned
+print(nrow(filter(m7.s, is.na(num))))
+# Number of rows without a number assigned - assigned to an object
+check <- m7.s %>% 
+  filter(is.na(num))
+
+# Create a subset of the data (m7.s1) with subj who have only one assay or have more than one assay but the same result each time having only one row. And, with more than one row for those subj with different results for repeat assays
+# Keep only rows that are different in both result 'num' and subject name
+m7.s1 = m7.s[order(m7.s$subject_id), ]
+
+# Count the number of rows n for each subject_id and find out the subjects with multiple experiments but different sample type
+m7.s2 <- m7.s1 %>% 
+  group_by(subject_id) %>% 
+  summarise(n = n())
+# Number of subjects with 1, 2, or more obs that are different additional obs for single subjects that were not different have been deleted
+print(with(m7.s2, addmargins(table(n, exclude = c()))))
+
+## Move to classify a final subtype for each subject_id
+
+finalsubtype <- m7.s1 %>%
+  rename(subject.id = subject_id, type.inf = num) %>% 
+  select(subject.id, type.inf, A, B, H1, H3, PH1, PA, RP)
+finalsubtype$subject.id <- as.integer(finalsubtype$subject.id)
+
+# Assign labels to type.inf
+finalsubtype$type.inf <- 
+  factor(finalsubtype$type.inf, levels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+         labels = c('seasonal H1','H3N2','Pandemic H1','B','Negative','H3N2 and B','H3N2 and PH1','B and PH1','Indeterminate','bad assay'))
+finalsubtype$type.inf <- as.character(finalsubtype$type.inf)
+indeterminate <- finalsubtype %>% 
+  filter(type.inf == 'Indeterminate')
+finalsubtype$type.inf[finalsubtype$subject.id == 95] <- 'B and unsubtypable A'
+
+#### READ in and work with 2016.06.17 1st visit NP swab subtyping II.csv data ####
+
+part2 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.06.17 1st visit NP swab subtyping II.csv', as.is = T)
+part2 <- part2 %>% 
+  select(-Well, -Well.Type, -Threshold..dR.)
+
+# Number of rows in part2 file
+print(nrow(part2))
+# Number of columns in part2 file
+print(ncol(part2))
+
+# Remove the rows within the data (e.g. reference, calibration, etc.) not needed for analysis
+n2 <- part2 %>% 
+  filter(Ct..dR. != 'Reference') %>% 
+  filter(!grepl('[A-Z]_[A-Z]', Well.Name)) %>% 
+  filter(!grepl('PosControl', Well.Name)) 
+
+# Generate a new column for subject_ID which can be obtained from sample_ID
+n2 <- n2 %>% 
+  mutate(subject_id=gsub('_[1-9]*_[0-Z]*[0-Z]*[0-Z]*[0-Z]*', '', Well.Name)) %>% 
+  mutate(subject_id = gsub('nf[0-Z]*', '', subject_id)) %>% 
+  mutate(subject_id = gsub('dm[0-Z]*', '', subject_id)) %>%
+  mutate(types = gsub('[0-9]*_[0-9]*', '', Well.Name))
+n2$subject_id <- as.numeric(n2$subject_id)
+n2 <- n2 %>% 
+  arrange(subject_id)
+
+finalsubtype$type.inf[finalsubtype$subject.id == 176] <- 'H3N2' 
+finalsubtype$type.inf[finalsubtype$subject.id == 335] <- 'B' 
+finalsubtype$type.inf[finalsubtype$subject.id == 64] <- 'Unsubtypable A' 
+
+# Write out this finalsubtype
+saveRDS(finalsubtype, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
+
+## Based on the pcr results from GII samples or 2rd/3rd np, we have modified a few subjects' subtype
+
+updatetype <- readRDS("R_output/negative subtype sample with positive pcr.RDS")
+updatetype1 <- updatetype %>% 
+  select(subject.id,type) %>% distinct(subject.id, type)
+updatetype2 <- updatetype1 %>% 
+  filter(type == 'A')
+finalsubtype$type.inf[finalsubtype$subject.id == 105] <- 'Unsubtypable A' 
+finalsubtype$type.inf[finalsubtype$subject.id == 226] <- 'Unsubtypable A' 
+updatetype3 <- updatetype1 %>% 
+  filter(type == 'B')
+# finalsubtype$type.inf[finalsubtype$subject.id == 52] <- 'B'
+# finalsubtype$type.inf[finalsubtype$subject.id == 58] <- 'B'
+finalsubtype$type.inf[finalsubtype$subject.id == 223] <- 'B'
+finalsubtype$type.inf[finalsubtype$subject.id == 231] <- 'B'
+finalsubtype$type.inf[finalsubtype$subject.id == 327] <- 'B'
+finalsubtype$type.inf[finalsubtype$subject.id == 329] <- 'B'
+finalsubtype$type.inf[finalsubtype$subject.id == 365] <- 'B'
 
 
