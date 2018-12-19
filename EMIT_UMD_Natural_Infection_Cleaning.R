@@ -1603,4 +1603,27 @@ finalsubtype$type.inf[finalsubtype$subject.id == 327] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 329] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 365] <- 'B'
 
+enrollcheck <- readRDS("R_output/EMIT_samples.cc.RDS") %>% 
+  select(subject.id,enrolled) %>% 
+  distinct(subject.id,enrolled) %>% 
+  filter(enrolled == TRUE)
+
+finalenrolltype <- semi_join(finalsubytpe, enrollcheck, by = 'subject.id')
+finalenrolltype <- finalenrolltype[order(finalenrolltype$subject.id), ]
+finalenrolltype <- finalenrolltype %>% 
+  select(subject.id, type.inf)
+
+saveRDS(finalenrolltype, file = paste(Out.dir, "EMIT_subtypes_enrolled.RDS", sep = ""))
+
+finalenrollepositive <- finalenrolltype %>% 
+  filter(!type.inf == 'Negative')
+
+saveRDS(finalenrollepositive, file = paste(Out.dir, "EMIT_subtypes_enrolled_positive.RDS", sep = ""))
+negative <- finalenrolltype %>% 
+  filter(type.inf == 'Negative')
+h3n2 <- finalenrolltype %>% filter(type.inf == 'H3N2')
+B <- finalenrolltype %>% 
+  filter(type.inf == 'B')
+Pandemic.H1 <- finalenrolltype %>% 
+  filter(type.inf == 'Pandemic H1')
 
