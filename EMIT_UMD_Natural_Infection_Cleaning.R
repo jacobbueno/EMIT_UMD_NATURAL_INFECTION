@@ -1619,11 +1619,49 @@ finalenrollepositive <- finalenrolltype %>%
   filter(!type.inf == 'Negative')
 
 saveRDS(finalenrollepositive, file = paste(Out.dir, "EMIT_subtypes_enrolled_positive.RDS", sep = ""))
+
 negative <- finalenrolltype %>% 
   filter(type.inf == 'Negative')
-h3n2 <- finalenrolltype %>% filter(type.inf == 'H3N2')
+
+h3n2 <- finalenrolltype %>% 
+  filter(type.inf == 'H3N2')
+
 B <- finalenrolltype %>% 
   filter(type.inf == 'B')
+
 Pandemic.H1 <- finalenrolltype %>% 
   filter(type.inf == 'Pandemic H1')
+
+#### **** Using Script: Jing and Dr. Milton's "1st np swab quantity.R" **** ####
+
+## Original file information:
+
+# Author: Jing Yan & Don Milton
+# Date: September 17, 2015
+# Revision Date: Jun 30,2016
+# Title: 1st np swab quantity.R
+# Purpose: To sort the data files from the lab (Michael Grantham) PCR data for 1st np samples 
+	
+# Input files:
+# InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluA quant.csv
+# InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluB quant.csv
+# Output files: R_output
+
+# Procedures:
+# 1. Sort out first NP swab PCR results(includes A and B, combine the two parts after sorting)
+# 2. For the first NP swab, seperate the subjects with flu A infection, flu B infection, 
+#    negative on the swab and dual infection of A and B
+# 3. Question: How to treat the samples with multiple PCR results? 
+# Method 1
+# 1 obs---use
+# >=2 obs---take mean(if one is No Ct, Tobit fitted value)
+# Method 2
+# Take a tobit model(obs~sample_id)---get fitted data for all the subjects
+# (check if fitted value match with the method1 values)
+#Method 3 
+# Tobit(obs~sample.type+subject.id)---get fitted data for all the subjects (may be different from Method 1)
+
+#### READ in and work with 
+
+
 
