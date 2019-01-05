@@ -1,7 +1,7 @@
 # EMIT UMD Natural Infection Study Data Curation - cleaning raw data to produce cleaned spreadsheets
 # Program Objective: Take the datasets identified as critical, clean them, and later merge to form curated one or more curated datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
-# Date: December 14, 2018
+# Date: December 14, 2018 - January 2019
 # Summary:
 
 #### Load required packages and set working directory ####
@@ -1040,6 +1040,8 @@ saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data
 
 clinical_umd <- read.csv(clinical_in_file)
 
+# clinical_in_file was an object that was taken from reading in "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv"
+
 ## Check whether there was anyone with no visit 1 who has a record for having had a g2 run ##
 
 g2_id <- unique(clinical_umd$field_subj_id[grep('^g2', clinical_umd$redcap_event_name)])
@@ -1237,6 +1239,8 @@ names(tab3link)[4] <- 'first_visit_date'
 
 g1 <- read.csv(g2_in_file)
 
+# g2_in_file was an object already read in earlier from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
+
 # Sujbect 81 in GII file appear to have a collection_2_arm 1 but it actually is a one time GII subject
 sum((g1$start_dt) == "")
 
@@ -1301,6 +1305,8 @@ write.csv(m2, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_S
 
 a <- read.csv(field_db_in_file, as.is = T)
 
+# field_db_in_file was already read in earlier from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
+
 names(a)
 a1 <- a %>% 
   select(SUBJECT_IDENTIFIER, SAMPLE_ID, COLLECTION_DT, TYPE_NAME)
@@ -1316,6 +1322,8 @@ a2 <- a1 %>%
 
 # Read in redcap_culture data
 b <- read.csv(sample_in_file, as.is = T)
+
+# sample_in_file is an object already read in from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv'
 
 #add a new colunm named as new date which is the same with date of sample collection
 b2 <- b %>% 
@@ -1586,7 +1594,7 @@ saveRDS(finalsubtype, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Da
 
 ## Based on the pcr results from GII samples or 2rd/3rd np, we have modified a few subjects' subtype
 
-updatetype <- readRDS("R_output/negative subtype sample with positive pcr.RDS")
+updatetype <- readRDS("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR Results/negative subtype sample with positive pcr copy.RDS")
 updatetype1 <- updatetype %>% 
   select(subject.id,type) %>% distinct(subject.id, type)
 updatetype2 <- updatetype1 %>% 
@@ -1603,7 +1611,7 @@ finalsubtype$type.inf[finalsubtype$subject.id == 327] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 329] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 365] <- 'B'
 
-enrollcheck <- readRDS("R_output/EMIT_samples.cc.RDS") %>% 
+enrollcheck <- readRDS('EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS') %>% 
   select(subject.id,enrolled) %>% 
   distinct(subject.id,enrolled) %>% 
   filter(enrolled == TRUE)
@@ -1647,21 +1655,31 @@ Pandemic.H1 <- finalenrolltype %>%
 # InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluB quant.csv
 # Output files: R_output
 
-# Procedures:
+### Procedures:
+
 # 1. Sort out first NP swab PCR results(includes A and B, combine the two parts after sorting)
 # 2. For the first NP swab, seperate the subjects with flu A infection, flu B infection, 
 #    negative on the swab and dual infection of A and B
 # 3. Question: How to treat the samples with multiple PCR results? 
-# Method 1
+
+## Method 1
 # 1 obs---use
 # >=2 obs---take mean(if one is No Ct, Tobit fitted value)
-# Method 2
+
+## Method 2
 # Take a tobit model(obs~sample_id)---get fitted data for all the subjects
 # (check if fitted value match with the method1 values)
-#Method 3 
+
+## Method 3 
 # Tobit(obs~sample.type+subject.id)---get fitted data for all the subjects (may be different from Method 1)
 
-#### READ in and work with 
+#### READ in and work with "EMIT_subtypes_enrolled_positive.RDS df" ####
+## Note that this df is the product of other script and in Jing's original setup, was saved to R_output
+# The original script from Jing that produced this df was: 
+## However, in this new setup, we have saved the EMIT_subtypes_enrolled_positive.RDS as: in the curated data folder
+
+
+
 
 
 
