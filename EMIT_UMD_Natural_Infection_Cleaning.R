@@ -1047,6 +1047,7 @@ saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data
 clinical_umd <- read.csv(clinical_in_file)
 
 # clinical_in_file was an object that was taken from reading in "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv"
+# This was already read in with the "Merge_1-3.R-update.r" script -- see above.
 
 ## Check whether there was anyone with no visit 1 who has a record for having had a g2 run ##
 
@@ -1246,6 +1247,7 @@ names(tab3link)[4] <- 'first_visit_date'
 g1 <- read.csv(g2_in_file)
 
 # g2_in_file was an object already read in earlier from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
+# See above for where this was already read in with material from the "merge_1-3.R-update.R" script
 
 # Sujbect 81 in GII file appear to have a collection_2_arm 1 but it actually is a one time GII subject
 sum((g1$start_dt) == "")
@@ -1585,216 +1587,6 @@ fluB4 <- fluB3 %>%
 
 saveRDS(fluB4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_calibration.RDS")
 
-#### **** Using Script: Jing and Dr. Milton's "1st np swab quantity.R" **** ####
-
-### 
-## Original file information:
-
-# Author: Jing Yan & Don Milton
-# Date: September 17, 2015
-# Revision Date: Jun 30, 2016
-# Title: 1st np swab quantity.R
-# Purpose: To sort the data files from the lab (Michael Grantham) PCR data for 1st np samples 
-
-# Input files:
-# InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluA quant.csv
-# InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluB quant.csv
-# Output files: R_output
-
-### Procedures:
-
-# 1. Sort out first NP swab PCR results(includes A and B, combine the two parts after sorting)
-# 2. For the first NP swab, seperate the subjects with flu A infection, flu B infection, 
-#    negative on the swab and dual infection of A and B
-# 3. Question: How to treat the samples with multiple PCR results? 
-
-## Method 1
-# 1 obs---use
-# >=2 obs---take mean(if one is No Ct, Tobit fitted value)
-
-## Method 2
-# Take a tobit model(obs~sample_id)---get fitted data for all the subjects
-# (check if fitted value match with the method1 values)
-
-## Method 3 
-# Tobit(obs~sample.type+subject.id)---get fitted data for all the subjects (may be different from Method 1)
-
-###
-#### READ in and work with "EMIT_subtypes_enrolled_positive.RDS" ####
-## Note that this df is the product of other script and in Jing's original setup, was saved to R_output
-# The original script from Jing that produced this df was: "subtype analysis.R"
-## However, in this new setup, we have saved the EMIT_subtypes_enrolled_positive.RDS in: 
-# ... EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data
-
-flu.types <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
-flu.types <- select(flu.types, subject.id, type.inf)
-
-#### READ in "fluA_1np_calibration.RDS" ####
-npAcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluA_1np_calibration.RDS")
-
-#### READ in "2016.08.05 1st visit NP swab FluA quant.csv" ####
-npA <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluA quant.csv', as.is = T)
-
-#### Work with the above 2 dfs ####
-names(npA)
-npA <- npA %>%
-  filter(Ct..dRn. != 'Reference')
-npA <- npA %>%
-  filter(!grepl('_Low', Well.Name))
-npA <- npA %>%
-  filter(!grepl('NTC', Well.Name))
-npA <- npA %>%
-  filter(!grepl('Standard', Well.Type))
-npA <- npA %>%
-  filter(!grepl('High', Well.Name))
-npA <- npA %>%
-  filter(grepl('_', Well.Name))
-npA <- npA %>%
-  select(-Well, -Well.Type, -Threshold..dRn.)
-npA <- rename(npA, copies.in = Quantity..copies.)
-
-# Number of rows in part1 first NP influenza A PCR data
-nrow(npA)
-# Number of column in part1 first NP influenza A PCR data
-ncol(npA)
-
-npA <- npA %>% 
-  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name))
-npA <- npA %>% 
-  mutate(subject.id = gsub('_A', '', subject.id))
-npA <- npA %>% 
-  mutate(subject.id = gsub('nfA', '', subject.id))
-npA[npA == "No Ct"] <- ''
-npA$copies.in <- as.numeric(npA$copies.in)
-npA <- npA %>%
-  mutate(copy.num = copies.in*100*80)
-npA <- npA[order(npA$subject.id), ]
-npA$result.type <- 'A'
-npA <- npA %>%
-  mutate(sample.id = gsub('_A', '', Well.Name))
-npA <- npA %>% 
-  mutate(sample.id = gsub('_InfA', '', sample.id))
-npA$sample.id[npA$sample.id == '118_1_1'] <- '118_1' 
-npA$sample.id[npA$sample.id == '69_1_1'] <- '69_1' 
-npA$sample.id[npA$sample.id == '70_1_1'] <- '70_1' 
-npA$sample.id[npA$sample.id == '210_1_1'] <- '210_1'
-npA$sample.id[npA$sample.id == '339_1_1'] <- '339_1'
-npA$sample.id[npA$sample.id == '356_1_1'] <- '356_1'
-npA <- npA %>%
-  distinct(subject.id, Ct..dRn., .keep_all = TRUE)
-
-# Number of rows in first NP influenza A PCR data
-nrow(npA)
-
-# Number of columns in first NP influenza A PCR data
-ncol(npA)
-
-npA <- rename(npA, Ct = Ct..dRn., type = result.type)
-npA <- npA %>%
-  select(-Well.Name)
-npA <- npA %>%
-  mutate(date = gsub('^[0-9]*.', '', Experiment))
-npAfinal <- left_join(npA, npAcali, by = 'date')
-#These samples were done by Jake and he did not put inter-run calibrators in the experiments, so the adjustment calibrators are missing
-npAfinal$cfactor[npAfinal$sample.id == '176_6'] <- 1
-npAfinal$cfactor[npAfinal$sample.id == '64_6'] <- 1
-npAfinal$virus.copies <- npAfinal$copy.num*npAfinal$cfactor
-
-#### Now working with the flu B calibrations ####
-
-#### READ in "fluB_1np_calibration.RDS" ####
-npBcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_1np_calibration.RDS")
-
-#### READ in "2016.08.05 1st visit NP swab FluB quant.csv" ####
-npB <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
-
-names(npB)
-npB <- npB %>%
-  filter(Ct..dRn. != 'Reference')
-npB <- npB %>%
-  filter(!grepl('_Low', Well.Name))
-npB <- npB %>%
-  filter(!grepl('NTC', Well.Name))
-npB <- npB %>%
-  filter(!grepl('Standard', Well.Type))
-npB <- npB %>%
-  filter(!grepl('High', Well.Name))
-npB <- npB %>%
-  filter(grepl('_', Well.Name))
-npB <- npB %>%
-  select(-Well, -Well.Type, -Threshold..dRn.)
-npB <- rename(npB, copies.in = Quantity..copies.)
-
-# Number of rows in part1 first NP influenza A PCR data
-nrow(npB)
-# Number of column in part1 first NP influenza A PCR data
-ncol(npB)
-
-npB <- npB %>%
-  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name))
-npB <- npB %>%
-  mutate(subject.id = gsub('_B', '', subject.id))
-npB <- npB %>%
-  mutate(subject.id = gsub('nfB', '', subject.id))
-npB[npB == "No Ct"]<-''
-npB$copies.in <- as.numeric(npB$copies.in)
-npB <- npB %>% 
-  mutate(copy.num = copies.in*100*411)
-npB <- npB[order(npB$subject.id),]
-npB$result.type <-'B'
-npB <- npB %>%
-  mutate(sample.id = gsub('_B', '', Well.Name))
-npB <- npB %>%
-  mutate(sample.id = gsub('_InfB', '', sample.id))
-npB$sample.id[npB$sample.id == '118_1_1'] <- '118_1' 
-npB$sample.id[npB$sample.id == '210_1_1'] <- '210_1' 
-npB$sample.id[npB$sample.id == '339_1_1'] <- '339_1' 
-npB$sample.id[npB$sample.id == '356_1_1'] <- '356_1' 
-npB$sample.id[npB$sample.id == '69_1_1'] <- '69_1' 
-npB$sample.id[npB$sample.id == '70_1_1'] <- '70_1' 
-npB<- npB %>%
-  distinct(subject.id, Ct..dRn., .keep_all = TRUE)
-
-# Number of rows in first NP influenza A PCR data
-nrow(npB)
-# Number of columns in first NP influenza A PCR data
-ncol(npB)
-
-npB <- rename(npB, Ct = Ct..dRn., type = result.type)
-npB <- npB %>%
-  select(-Well.Name)
-npB <- npB %>%
-  mutate(date = gsub('^[0-9]*.', '',Experiment))
-npBfinal <- left_join(npB ,npBcali, by = 'date')
-npBfinal$virus.copies <- npBfinal$copy.num*npBfinal$cfactor
-
-#### Merging together the fluA and fluB data ####
-
-npfirst <- rbind(npAfinal, npBfinal)
-npfirst$subject.id = as.integer(npfirst$subject.id)
-npfirst <- npfirst[order(npfirst$subject.id), ]
-
-npfirstpositive <- inner_join(npfirst, flu.types, by = c("subject.id"))
-unmatchedfirstnp1 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'H3N2')
-unmatchedfirstnp2 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'Pandemic H1')
-unmatchedfirstnp3 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'Unsubtypable A')
-unmatchedfirstnp4 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'H3N2 and PH1')
-unmatchedfirstnp5 <- npfirstpositive %>%filter( type == 'A' &  type.inf == 'B')
-unmatchedtotal <- rbind(unmatchedfirstnp1, unmatchedfirstnp2, unmatchedfirstnp3, unmatchedfirstnp4, unmatchedfirstnp5)
-npfirstpositiveupdate <- setdiff(npfirstpositive, unmatchedtotal)
-#Check if any replicates in the data and why
-check2 <- npfirstpositiveupdate %>%
-  group_by(sample.id) %>%
-  summarise(n = n())
-check2 <- check2[order(check2$n), ]
-# samples that are duplicated at least once are 100_1,104_1,118_1,123_1,174_1,230_1,357_1,81_1,97_1,95_1
-#230 is dual infection has in both A and B, A has greater virus copies than B, 95 is dual infection in both A and B, B has greater virus copies than A 
-npfirstpositiveupdate <- npfirstpositiveupdate[order(npfirstpositiveupdate$subject.id), ]
-
-npfirstpositiveupdate$sample.type <- 'Nasopharyngeal swab'
-
-saveRDS(npfirstpositiveupdate, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
-
 #### **** Using Script: Jing and Dr. Milton's "np fine coarse pcr quantity.R"**** ####
 
 ###
@@ -2027,152 +1819,8 @@ nrow(total.pcr)
 # Number of columns of total (gii and 2rd or 3rd NP samples) PCR data
 ncol(total.pcr)
 
-#### Merge the PCR data with sample virus subtype ####
-
-flu.types <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
-flu.types <- select(flu.types, subject.id, type.inf)
-
-# incldue subtype in the file
-includetype <- inner_join(total.pcr, flu.types, by = "subject.id")
-includetype <- rename(includetype, sample.id = Well.Name)
-includetype1 <- includetype %>% 
-  filter(type.inf == 'Negative')
-
-#### Merge PCR data with sample type ####
-
-allsamples <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
-sampletype <- allsamples %>% 
-  select(subject.id, sample.id, sample.type)
-
-#find out the negative virus subtype but have positive pcr results,From these we can define the virus subtypes of some of the negative cases
-negative <- includetype %>% 
-  filter(type.inf == 'Negative' & Ct..dRn. > 0) %>% 
-  select(Experiment, sample.id, Ct..dRn., subject.id, type, type.inf) %>%
-  inner_join(sampletype, by = c("subject.id", "sample.id"))
-
-# Subjects with negative sample type but positive pcr results from either GII sample or 2rd/3rd NP swab.
-print(negative)
-
-saveRDS(negative, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
-
-
-#### Check that all the negative subjects do not have any positive GII or 2nd/3rd np positive PCR samples ####
-
-flu.typesenroll <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
-flu.typesenroll <- select(flu.typesenroll,subject.id, type.inf)
-
-#incldue subtype in the file
-includetypeenroll <- inner_join(total.pcr, flu.typesenroll, by = "subject.id") %>%
-  rename(sample.id = Well.Name)
-includetypeenrollneg <- includetypeenroll %>% 
-  filter(type.inf == 'Negative') %>%
-  inner_join(allsamples, by = c("subject.id", "sample.id")) %>% 
-  filter(focus.ct > 0)
-# 50, 234, 306 are negative cases with all samples negative for PCR, but 50_3, 234_3, 306_3 are positive for focus assay
-
-#### READ in "EMIT_subtypes_enrolled_positive.RDS" ####
-
-flu.typepositive <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
-
-#### Check the unmatched cases between sample virus subtype and PCR results ####
-
-flu.typepositive  <- select(flu.typepositive, subject.id, type.inf)
-#incldue subtype in the file
-includetypepostive <- inner_join(total.pcr, flu.typepositive, by = "subject.id") %>% 
-  rename(sample.id = Well.Name) %>%
-  inner_join(sampletype, by = c("subject.id", "sample.id"))
-
-# sampletypevirus <- inner_join(includetypepostive, sampletype, by = c("subject.id", "sample.id"))
-# write.csv(sampletypevirus, "C:/Users/Jing/Desktop/output/sampletypevirus.csv")
-# no dual infection A and B found in the GII samples and 2rd or 3rd NP PCR data
-
-dual <- includetypepostive %>% 
-  group_by(subject.id) %>% 
-  filter( type == 'A' & type == 'B')
-unmatched1 <- includetypepostive %>% 
-  filter(type == 'B' & type.inf != 'B')
-print(unmatched1)
-unmatched2 <- includetypepostive %>%
-  filter( type == 'A' &  type.inf == 'B')
-
-# Number of samples with positive ct value for A but stubtype for B
-nrow(unmatched2)
-
-includetypepostiveupdate <- anti_join(includetypepostive, unmatched1, 
-                                      by = c("Experiment", "sample.id", "Ct..dRn.", "copies.in", "subject.id", "type", "copy.num", "date", "cfactor", "virus.copies", "type.inf", "sample.type")) %>% 
-  anti_join(unmatched2 , by = c("Experiment","sample.id","Ct..dRn.","copies.in","subject.id","type","copy.num","date","cfactor","virus.copies","type.inf","sample.type"))
-
-#### Pick pos fluA, pos fluB, join, assign copy number ####
-
-# Pick out all the PCR with A assay results
-allpcrA <- includetypepostiveupdate %>% 
-  filter(type == 'A') %>%
-  rename(virus.copiesA = virus.copies, typeA = type) %>%
-  rename(CtA = Ct..dRn.)
-
-# Pick out all the PCR with B assay results
-allpcrB <- includetypepostiveupdate %>% 
-  filter(type == 'B') %>%
-  rename(virus.copiesB = virus.copies, typeB = type) %>%
-  rename(CtB = Ct..dRn.)
-
-# Join both A and B assay, and also add sample type in the data list, assign the final RNA copies number for each sample type
-allPCR <- full_join(allpcrA, allpcrB, by = c('subject.id', 'Experiment', 'type.inf', 'sample.id', 'sample.type', "copies.in", 'copy.num', 'date', 'cfactor'))
-allPCR <- allPCR[order(allPCR$subject.id), ]
-allPCR <- allPCR %>% 
-  filter(!sample.type == 'Throat Swab')
-# Flagged samples all NP swabs, dilution factor is 50
-#66_7 120_7 184_8 188_7 189_7 192_7 196_7 262_7 277_7 284_12 284_7 296_12 296_7
-allPCR1 <- allPCR %>% 
-  filter(sample.id == '66_7'|sample.id == '120_7' | sample.id == '184_8' | sample.id == '188_7' | sample.id == '189_7' | sample.id == '192_7' | 
-           sample.id == '196_7' | sample.id == '262_7' | sample.id == '277_7' | sample.id == '284_12' | sample.id == '284_7' | 
-           sample.id == '296_12'| sample.id=='296_7')
-allPCR2 <- anti_join(allPCR, allPCR1)
-allPCR3 <- allPCR1 %>% 
-  mutate(final.copiesA = virus.copiesA*50, final.copiesB = virus.copiesB*50)
-allPCR4 <- allPCR2 %>% 
-  filter(!sample.type == 'Nasopharyngeal swab') %>% 
-  mutate(final.copiesA = virus.copiesA*25,final.copiesB = virus.copiesB*25)
-allPCR5 <- allPCR2 %>% 
-  filter(sample.type == 'Nasopharyngeal swab') %>%
-  mutate(final.copiesA = virus.copiesA*100, final.copiesB = virus.copiesB*100)
-allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>% 
-  ungroup
-
-allPCR.A <- allPCRtotal %>% 
-  filter(typeA == 'A') %>%
-  select(-CtB, -virus.copiesB, -typeB, -final.copiesB)
-allPCR.A <- rename(allPCR.A, Ct = CtA,virus.copies = virus.copiesA, type = typeA,final.copies = final.copiesA)
-allPCR.B <- allPCRtotal %>% 
-  filter(typeB == 'B') %>%
-  select(-CtA, -virus.copiesA, -typeA, -final.copiesA)
-allPCR.B <- rename(allPCR.B, Ct = CtB, virus.copies = virus.copiesB, type = typeB, final.copies = final.copiesB)
-# 2. merge the seperated FILE FOR A and B back together, successfully make,- one row for one subject.id
-allPCRfinal <- rbind(allPCR.A, allPCR.B) %>% 
-  ungroup
-
-saveRDS(allPCRfinal, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/pcr data for gii and 2nd&3rd np.RDS")
-
-#### Check to make sure no repeats ####
-
-no.repeats.pos <- allPCRfinal %>% 
-  group_by(sample.id) %>%
-  summarise(n = n())
-
-# Subjects with known sample type should only have 2 PCR result
-no.repeats.pos.1 <- no.repeats.pos %>% 
-  filter(n == 1) %>% 
-  left_join(allPCR, by = 'sample.id') %>% 
-  select(Experiment, sample.id, CtA, copies.in, typeA, type.inf, CtB, typeB)
-# Subjects with known sample type have only one PCR result
-print(no.repeats.pos.1)
-
-no.repeats.pos.2 <- no.repeats.pos %>% 
-  filter(n == 4) %>%
-  left_join(allPCR, by = 'sample.id') %>%
-  select(Experiment, sample.id, CtA, copies.in, typeA, type.inf, CtB, typeB)
-# Subjects with known sample type have two PCR result
-print(no.repeats.pos.2)
+#### Before merging PCR data with subtype, need the subtypes ####
+## In order to do this, we will interrupt the flow of the: script to insert a section from the subtype script
 
 #### **** Using Script: Jing and Dr. Milton's "Subtype analysis.R" **** ####
 
@@ -2312,13 +1960,13 @@ m7.s$type.H3N2.and.PH1 <- with(m7.s, ifelse(type.sub.H3 & type.sub.PH1, T, F))
 m7.s$type.B.and.PH1 <- with(m7.s, ifelse(type.B & type.sub.PH1, T, F))
 
 m7.s$type.sub.indet <- with(m7.s, ifelse(((A | H3 | H1 | PH1 | PA) # any one of the A reactions
-                                            & !(type.sub.H3|type.sub.H1|type.sub.PH1)), T, F)) # & did not meet a subt def
+                                          & !(type.sub.H3|type.sub.H1|type.sub.PH1)), T, F)) # & did not meet a subt def
 
 m7.s$type.neg <- with(m7.s, ifelse(RP & # RP positive w/o another pos is a true negative reaction.
-                                      !(A|B|H3|PH1|PA), T, F))
+                                     !(A|B|H3|PH1|PA), T, F))
 
 m7.s$type.badass <- with(m7.s, ifelse(!RP & # RP negative and everything else neg is a bad assay.
-                                       !(A | H3 | H1 | PH1 | PA  | B ), T, F))
+                                        !(A | H3 | H1 | PH1 | PA  | B ), T, F))
 
 ## Assign a number code to each possible combination of results (among those observed)
 
@@ -2401,7 +2049,37 @@ finalsubtype$type.inf[finalsubtype$subject.id == 64] <- 'Unsubtypable A'
 # Write out this finalsubtype
 saveRDS(finalsubtype, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
 
+#### Merge the PCR data with sample virus subtype ####
+
+flu.types <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
+flu.types <- select(flu.types, subject.id, type.inf)
+
+# incldue subtype in the file
+includetype <- inner_join(total.pcr, flu.types, by = "subject.id")
+includetype <- rename(includetype, sample.id = Well.Name)
+includetype1 <- includetype %>% 
+  filter(type.inf == 'Negative')
+
+#### Merge PCR data with sample type ####
+
+allsamples <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
+sampletype <- allsamples %>% 
+  select(subject.id, sample.id, sample.type)
+
+#find out the negative virus subtype but have positive pcr results,From these we can define the virus subtypes of some of the negative cases
+negative <- includetype %>% 
+  filter(type.inf == 'Negative' & Ct..dRn. > 0) %>% 
+  select(Experiment, sample.id, Ct..dRn., subject.id, type, type.inf) %>%
+  inner_join(sampletype, by = c("subject.id", "sample.id"))
+
+# Subjects with negative sample type but positive pcr results from either GII sample or 2rd/3rd NP swab.
+print(negative)
+
+saveRDS(negative, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
+
 ## Based on the pcr results from GII samples or 2rd/3rd np, we have modified a few subjects' subtype
+
+#### READ in "negative subtype sample with positive pcr.RDS" ####
 
 updatetype <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
 updatetype1 <- updatetype %>% 
@@ -2420,6 +2098,8 @@ finalsubtype$type.inf[finalsubtype$subject.id == 327] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 329] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 365] <- 'B'
 
+#### READ in "EMIT_samples.cc.RDS" ####
+
 enrollcheck <- readRDS('EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS') %>% 
   select(subject.id,enrolled) %>% 
   distinct(subject.id,enrolled) %>% 
@@ -2431,6 +2111,20 @@ finalenrolltype <- finalenrolltype %>%
   select(subject.id, type.inf)
 
 saveRDS(finalenrolltype, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+
+#### Check that all the negative subjects do not have any positive GII or 2nd/3rd np positive PCR samples ####
+
+flu.typesenroll <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+flu.typesenroll <- select(flu.typesenroll,subject.id, type.inf)
+
+#incldue subtype in the file
+includetypeenroll <- inner_join(total.pcr, flu.typesenroll, by = "subject.id") %>%
+  rename(sample.id = Well.Name)
+includetypeenrollneg <- includetypeenroll %>% 
+  filter(type.inf == 'Negative') %>%
+  inner_join(allsamples, by = c("subject.id", "sample.id")) %>% 
+  filter(focus.ct > 0)
+# 50, 234, 306 are negative cases with all samples negative for PCR, but 50_3, 234_3, 306_3 are positive for focus assay
 
 finalenrollepositive <- finalenrolltype %>% 
   filter(!type.inf == 'Negative')
@@ -2448,4 +2142,318 @@ B <- finalenrolltype %>%
 
 Pandemic.H1 <- finalenrolltype %>% 
   filter(type.inf == 'Pandemic H1')
+
+#### READ in "EMIT_subtypes_enrolled_positive.RDS" ####
+
+flu.typepositive <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
+
+#### Check the unmatched cases between sample virus subtype and PCR results ####
+
+flu.typepositive  <- select(flu.typepositive, subject.id, type.inf)
+#incldue subtype in the file
+includetypepostive <- inner_join(total.pcr, flu.typepositive, by = "subject.id") %>% 
+  rename(sample.id = Well.Name) %>%
+  inner_join(sampletype, by = c("subject.id", "sample.id"))
+
+# sampletypevirus <- inner_join(includetypepostive, sampletype, by = c("subject.id", "sample.id"))
+# write.csv(sampletypevirus, "C:/Users/Jing/Desktop/output/sampletypevirus.csv")
+# no dual infection A and B found in the GII samples and 2rd or 3rd NP PCR data
+
+dual <- includetypepostive %>% 
+  group_by(subject.id) %>% 
+  filter( type == 'A' & type == 'B')
+unmatched1 <- includetypepostive %>% 
+  filter(type == 'B' & type.inf != 'B')
+print(unmatched1)
+unmatched2 <- includetypepostive %>%
+  filter( type == 'A' &  type.inf == 'B')
+
+# Number of samples with positive ct value for A but stubtype for B
+nrow(unmatched2)
+
+includetypepostiveupdate <- anti_join(includetypepostive, unmatched1, 
+                                      by = c("Experiment", "sample.id", "Ct..dRn.", "copies.in", "subject.id", "type", "copy.num", "date", "cfactor", "virus.copies", "type.inf", "sample.type")) %>% 
+  anti_join(unmatched2 , by = c("Experiment","sample.id","Ct..dRn.","copies.in","subject.id","type","copy.num","date","cfactor","virus.copies","type.inf","sample.type"))
+
+#### Pick pos fluA, pos fluB, join, assign copy number ####
+
+# Pick out all the PCR with A assay results
+allpcrA <- includetypepostiveupdate %>% 
+  filter(type == 'A') %>%
+  rename(virus.copiesA = virus.copies, typeA = type) %>%
+  rename(CtA = Ct..dRn.)
+
+# Pick out all the PCR with B assay results
+allpcrB <- includetypepostiveupdate %>% 
+  filter(type == 'B') %>%
+  rename(virus.copiesB = virus.copies, typeB = type) %>%
+  rename(CtB = Ct..dRn.)
+
+# Join both A and B assay, and also add sample type in the data list, assign the final RNA copies number for each sample type
+allPCR <- full_join(allpcrA, allpcrB, by = c('subject.id', 'Experiment', 'type.inf', 'sample.id', 'sample.type', "copies.in", 'copy.num', 'date', 'cfactor'))
+allPCR <- allPCR[order(allPCR$subject.id), ]
+allPCR <- allPCR %>% 
+  filter(!sample.type == 'Throat Swab')
+# Flagged samples all NP swabs, dilution factor is 50
+#66_7 120_7 184_8 188_7 189_7 192_7 196_7 262_7 277_7 284_12 284_7 296_12 296_7
+allPCR1 <- allPCR %>% 
+  filter(sample.id == '66_7'|sample.id == '120_7' | sample.id == '184_8' | sample.id == '188_7' | sample.id == '189_7' | sample.id == '192_7' | 
+           sample.id == '196_7' | sample.id == '262_7' | sample.id == '277_7' | sample.id == '284_12' | sample.id == '284_7' | 
+           sample.id == '296_12'| sample.id=='296_7')
+allPCR2 <- anti_join(allPCR, allPCR1)
+allPCR3 <- allPCR1 %>% 
+  mutate(final.copiesA = virus.copiesA*50, final.copiesB = virus.copiesB*50)
+allPCR4 <- allPCR2 %>% 
+  filter(!sample.type == 'Nasopharyngeal swab') %>% 
+  mutate(final.copiesA = virus.copiesA*25,final.copiesB = virus.copiesB*25)
+allPCR5 <- allPCR2 %>% 
+  filter(sample.type == 'Nasopharyngeal swab') %>%
+  mutate(final.copiesA = virus.copiesA*100, final.copiesB = virus.copiesB*100)
+allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>% 
+  ungroup
+
+allPCR.A <- allPCRtotal %>% 
+  filter(typeA == 'A') %>%
+  select(-CtB, -virus.copiesB, -typeB, -final.copiesB)
+allPCR.A <- rename(allPCR.A, Ct = CtA,virus.copies = virus.copiesA, type = typeA,final.copies = final.copiesA)
+allPCR.B <- allPCRtotal %>% 
+  filter(typeB == 'B') %>%
+  select(-CtA, -virus.copiesA, -typeA, -final.copiesA)
+allPCR.B <- rename(allPCR.B, Ct = CtB, virus.copies = virus.copiesB, type = typeB, final.copies = final.copiesB)
+# 2. merge the seperated FILE FOR A and B back together, successfully make,- one row for one subject.id
+allPCRfinal <- rbind(allPCR.A, allPCR.B) %>% 
+  ungroup
+
+saveRDS(allPCRfinal, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/pcr data for gii and 2nd&3rd np.RDS")
+
+#### Check to make sure no repeats ####
+
+no.repeats.pos <- allPCRfinal %>% 
+  group_by(sample.id) %>%
+  summarise(n = n())
+
+# Subjects with known sample type should only have 2 PCR result
+no.repeats.pos.1 <- no.repeats.pos %>% 
+  filter(n == 1) %>% 
+  left_join(allPCR, by = 'sample.id') %>% 
+  select(Experiment, sample.id, CtA, copies.in, typeA, type.inf, CtB, typeB)
+# Subjects with known sample type have only one PCR result
+print(no.repeats.pos.1)
+
+no.repeats.pos.2 <- no.repeats.pos %>% 
+  filter(n == 4) %>%
+  left_join(allPCR, by = 'sample.id') %>%
+  select(Experiment, sample.id, CtA, copies.in, typeA, type.inf, CtB, typeB)
+# Subjects with known sample type have two PCR result
+print(no.repeats.pos.2)
+
+#### **** Using Script: Jing and Dr. Milton's "1st np swab quantity.R" **** ####
+
+### 
+## Original file information:
+
+# Author: Jing Yan & Don Milton
+# Date: September 17, 2015
+# Revision Date: Jun 30, 2016
+# Title: 1st np swab quantity.R
+# Purpose: To sort the data files from the lab (Michael Grantham) PCR data for 1st np samples 
+
+# Input files:
+# InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluA quant.csv
+# InputFiles_UMD/PCR results/2016.06.17 1st visit NP swab FluB quant.csv
+# Output files: R_output
+
+### Procedures:
+
+# 1. Sort out first NP swab PCR results(includes A and B, combine the two parts after sorting)
+# 2. For the first NP swab, seperate the subjects with flu A infection, flu B infection, 
+#    negative on the swab and dual infection of A and B
+# 3. Question: How to treat the samples with multiple PCR results? 
+
+## Method 1
+# 1 obs---use
+# >=2 obs---take mean(if one is No Ct, Tobit fitted value)
+
+## Method 2
+# Take a tobit model(obs~sample_id)---get fitted data for all the subjects
+# (check if fitted value match with the method1 values)
+
+## Method 3 
+# Tobit(obs~sample.type+subject.id)---get fitted data for all the subjects (may be different from Method 1)
+
+###
+#### READ in and work with "EMIT_subtypes_enrolled_positive.RDS" ####
+## Note that this df is the product of other script and in Jing's original setup, was saved to R_output
+# The original script from Jing that produced this df was: "subtype analysis.R"
+## However, in this new setup, we have saved the EMIT_subtypes_enrolled_positive.RDS in: 
+# ... EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data
+
+flu.types <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
+flu.types <- select(flu.types, subject.id, type.inf)
+
+#### READ in "fluA_1np_calibration.RDS" ####
+npAcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluA_1np_calibration.RDS")
+
+#### READ in "2016.08.05 1st visit NP swab FluA quant.csv" ####
+npA <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluA quant.csv', as.is = T)
+
+#### Work with the above 2 dfs ####
+names(npA)
+npA <- npA %>%
+  filter(Ct..dRn. != 'Reference')
+npA <- npA %>%
+  filter(!grepl('_Low', Well.Name))
+npA <- npA %>%
+  filter(!grepl('NTC', Well.Name))
+npA <- npA %>%
+  filter(!grepl('Standard', Well.Type))
+npA <- npA %>%
+  filter(!grepl('High', Well.Name))
+npA <- npA %>%
+  filter(grepl('_', Well.Name))
+npA <- npA %>%
+  select(-Well, -Well.Type, -Threshold..dRn.)
+npA <- rename(npA, copies.in = Quantity..copies.)
+
+# Number of rows in part1 first NP influenza A PCR data
+nrow(npA)
+# Number of column in part1 first NP influenza A PCR data
+ncol(npA)
+
+npA <- npA %>% 
+  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name))
+npA <- npA %>% 
+  mutate(subject.id = gsub('_A', '', subject.id))
+npA <- npA %>% 
+  mutate(subject.id = gsub('nfA', '', subject.id))
+npA[npA == "No Ct"] <- ''
+npA$copies.in <- as.numeric(npA$copies.in)
+npA <- npA %>%
+  mutate(copy.num = copies.in*100*80)
+npA <- npA[order(npA$subject.id), ]
+npA$result.type <- 'A'
+npA <- npA %>%
+  mutate(sample.id = gsub('_A', '', Well.Name))
+npA <- npA %>% 
+  mutate(sample.id = gsub('_InfA', '', sample.id))
+npA$sample.id[npA$sample.id == '118_1_1'] <- '118_1' 
+npA$sample.id[npA$sample.id == '69_1_1'] <- '69_1' 
+npA$sample.id[npA$sample.id == '70_1_1'] <- '70_1' 
+npA$sample.id[npA$sample.id == '210_1_1'] <- '210_1'
+npA$sample.id[npA$sample.id == '339_1_1'] <- '339_1'
+npA$sample.id[npA$sample.id == '356_1_1'] <- '356_1'
+npA <- npA %>%
+  distinct(subject.id, Ct..dRn., .keep_all = TRUE)
+
+# Number of rows in first NP influenza A PCR data
+nrow(npA)
+
+# Number of columns in first NP influenza A PCR data
+ncol(npA)
+
+npA <- rename(npA, Ct = Ct..dRn., type = result.type)
+npA <- npA %>%
+  select(-Well.Name)
+npA <- npA %>%
+  mutate(date = gsub('^[0-9]*.', '', Experiment))
+npAfinal <- left_join(npA, npAcali, by = 'date')
+#These samples were done by Jake and he did not put inter-run calibrators in the experiments, so the adjustment calibrators are missing
+npAfinal$cfactor[npAfinal$sample.id == '176_6'] <- 1
+npAfinal$cfactor[npAfinal$sample.id == '64_6'] <- 1
+npAfinal$virus.copies <- npAfinal$copy.num*npAfinal$cfactor
+
+#### Now working with the flu B calibrations ####
+
+#### READ in "fluB_1np_calibration.RDS" ####
+npBcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_1np_calibration.RDS")
+
+#### READ in "2016.08.05 1st visit NP swab FluB quant.csv" ####
+npB <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
+
+names(npB)
+npB <- npB %>%
+  filter(Ct..dRn. != 'Reference')
+npB <- npB %>%
+  filter(!grepl('_Low', Well.Name))
+npB <- npB %>%
+  filter(!grepl('NTC', Well.Name))
+npB <- npB %>%
+  filter(!grepl('Standard', Well.Type))
+npB <- npB %>%
+  filter(!grepl('High', Well.Name))
+npB <- npB %>%
+  filter(grepl('_', Well.Name))
+npB <- npB %>%
+  select(-Well, -Well.Type, -Threshold..dRn.)
+npB <- rename(npB, copies.in = Quantity..copies.)
+
+# Number of rows in part1 first NP influenza A PCR data
+nrow(npB)
+# Number of column in part1 first NP influenza A PCR data
+ncol(npB)
+
+npB <- npB %>%
+  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name))
+npB <- npB %>%
+  mutate(subject.id = gsub('_B', '', subject.id))
+npB <- npB %>%
+  mutate(subject.id = gsub('nfB', '', subject.id))
+npB[npB == "No Ct"]<-''
+npB$copies.in <- as.numeric(npB$copies.in)
+npB <- npB %>% 
+  mutate(copy.num = copies.in*100*411)
+npB <- npB[order(npB$subject.id),]
+npB$result.type <-'B'
+npB <- npB %>%
+  mutate(sample.id = gsub('_B', '', Well.Name))
+npB <- npB %>%
+  mutate(sample.id = gsub('_InfB', '', sample.id))
+npB$sample.id[npB$sample.id == '118_1_1'] <- '118_1' 
+npB$sample.id[npB$sample.id == '210_1_1'] <- '210_1' 
+npB$sample.id[npB$sample.id == '339_1_1'] <- '339_1' 
+npB$sample.id[npB$sample.id == '356_1_1'] <- '356_1' 
+npB$sample.id[npB$sample.id == '69_1_1'] <- '69_1' 
+npB$sample.id[npB$sample.id == '70_1_1'] <- '70_1' 
+npB<- npB %>%
+  distinct(subject.id, Ct..dRn., .keep_all = TRUE)
+
+# Number of rows in first NP influenza A PCR data
+nrow(npB)
+# Number of columns in first NP influenza A PCR data
+ncol(npB)
+
+npB <- rename(npB, Ct = Ct..dRn., type = result.type)
+npB <- npB %>%
+  select(-Well.Name)
+npB <- npB %>%
+  mutate(date = gsub('^[0-9]*.', '',Experiment))
+npBfinal <- left_join(npB ,npBcali, by = 'date')
+npBfinal$virus.copies <- npBfinal$copy.num*npBfinal$cfactor
+
+#### Merging together the fluA and fluB data ####
+
+npfirst <- rbind(npAfinal, npBfinal)
+npfirst$subject.id = as.integer(npfirst$subject.id)
+npfirst <- npfirst[order(npfirst$subject.id), ]
+
+npfirstpositive <- inner_join(npfirst, flu.types, by = c("subject.id"))
+unmatchedfirstnp1 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'H3N2')
+unmatchedfirstnp2 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'Pandemic H1')
+unmatchedfirstnp3 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'Unsubtypable A')
+unmatchedfirstnp4 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'H3N2 and PH1')
+unmatchedfirstnp5 <- npfirstpositive %>%filter( type == 'A' &  type.inf == 'B')
+unmatchedtotal <- rbind(unmatchedfirstnp1, unmatchedfirstnp2, unmatchedfirstnp3, unmatchedfirstnp4, unmatchedfirstnp5)
+npfirstpositiveupdate <- setdiff(npfirstpositive, unmatchedtotal)
+#Check if any replicates in the data and why
+check2 <- npfirstpositiveupdate %>%
+  group_by(sample.id) %>%
+  summarise(n = n())
+check2 <- check2[order(check2$n), ]
+# samples that are duplicated at least once are 100_1,104_1,118_1,123_1,174_1,230_1,357_1,81_1,97_1,95_1
+#230 is dual infection has in both A and B, A has greater virus copies than B, 95 is dual infection in both A and B, B has greater virus copies than A 
+npfirstpositiveupdate <- npfirstpositiveupdate[order(npfirstpositiveupdate$subject.id), ]
+
+npfirstpositiveupdate$sample.type <- 'Nasopharyngeal swab'
+
+saveRDS(npfirstpositiveupdate, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
 
