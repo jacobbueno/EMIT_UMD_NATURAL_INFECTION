@@ -1023,85 +1023,6 @@ samples.cc <- merge3 %>%
 
 saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
 
-#### **** Using Script: Jing Yan's "field database with redcap culture.R" **** #### 
-
-###
-## Original file information:
-
-# "field data base check with redcap culture.R"
-# by Jing Yan
-# December 16, 2015
-# Purpose:check if all the redcap culture sample id match with the field id   
-
-###
-
-#### READ in and work with FIELD SAMPLE DATABASE ####
-
-a <- read.csv(field_db_in_file, as.is = T)
-
-# field_db_in_file was already read in earlier from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
-
-names(a)
-a1 <- a %>% 
-  select(SUBJECT_IDENTIFIER, SAMPLE_ID, COLLECTION_DT, TYPE_NAME)
-names(a1)[2] = "sample_id"
-names(a1)[3] = "Dates_a"
-names(a1)[4] = "Sample.Type"
-
-# Add a new column as newdate which the same as collection_dt but with format m/d/y
-a2 <- a1 %>% 
-  mutate(newdate = as.Date(Dates_a, format = '%m/%d/%Y'))
-
-#### READ in and work with UMD SAMPLES DATABASE (REDCAP DATA) ####
-
-# Read in redcap_culture data
-b <- read.csv(sample_in_file, as.is = T)
-
-# sample_in_file is an object already read in from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv'
-
-#add a new colunm named as new date which is the same with date of sample collection
-b2 <- b %>% 
-  mutate(newdate = as.Date(dt_visit, format = '%m/%d/%Y'))
-
-#b3 proves that there is no missing date of sample collection in the redcap culture file
-b3 <- b2 %>% 
-  filter(dt_visit != '') %>%
-  rename(Sample.Type = sample_type)
-
-m  <- b3 %>% 
-  left_join(a2, by = c('sample_id', 'newdate', 'Sample.Type'))
-
-m1 <- m %>% 
-  select(sample_id, newdate, Sample.Type, Dates_a)
-
-m11 <- m1 %>% 
-  select(sample_id, newdate, Sample.Type)
-
-sum(is.na(m1$Dates_a))
-
-m2 <- m1 %>% 
-  filter(!grepl('.', Dates_a))
-
-# This result suggests that all the redcap culture sample IDs and sample types and enrolled data match with the field ID data ...
-# ... Only 237_6 was included in the field data base but not the redcap culture data ...
-# ... 237 is an enrolled subject for 1 time, it should not have a _6 sample
-# From the above code we know all the culture redcap sample ID can be found in field ID, not sure if all the field ID can be found in culture redcap
-
-m3  <- a2 %>% 
-  left_join(b3, by = c('sample_id', 'newdate', 'Sample.Type'))
-
-m4 <- m3 %>% 
-  select(sample_id, newdate, Sample.Type)
-
-sum(is.na(m4$Date.of.sample.collection))
-
-m5 <- m4 %>% 
-  filter(!grepl('.', newdate))
-# m5 are the samples that were included in the field_id but not included in the redcap culture
-
-# There is no output for this section - rather this is part of the data checking and exploratory analysis. 
-# A report can be generated from the objects in this piece of the script if desired. 
-
 #### **** Using Script: Jing's "interun calibration.R" **** ####
 
 ### 
@@ -1429,8 +1350,8 @@ pcr_A3 <- pcr_A3[order(pcr_A3$Well.Name), ]
 
 pcr_A <- rbind(pcr_A1, pcr_A2, pcr_A3) %>% 
   ungroup
-pcr_A <- pcr_A %>% mutate(type = 'A')
-pcr_A <- pcr_A %>% mutate(copy.num = copies.in*80)
+pcr_A <- pcr_A %>% mutate(type = 'A') %>% 
+  mutate(copy.num = copies.in*80)
 
 # Number of rows of total (gii and 2rd or 3rd NP samples) influenza A PCR data
 nrow(pcr_A)
@@ -1440,7 +1361,7 @@ ncol(pcr_A)
 pcr_A <- pcr_A[order(pcr_A$subject.id), ]
 pcr_A <- pcr_A %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
-pcr_Afinal <- left_join(pcr_A,fluAcali,by = 'date')
+pcr_Afinal <- left_join(pcr_A, fluAcali, by = 'date')
 pcr_Afinal$virus.copies <- pcr_Afinal$copy.num*pcr_Afinal$cfactor
 
 #### READ in "fluB_calibration.RDS" ####
@@ -1525,7 +1446,7 @@ pcr_Bfinal$virus.copies <- pcr_Bfinal$copy.num*pcr_Bfinal$cfactor
 
 total.pcr <- rbind(pcr_Afinal, pcr_Bfinal)
 total.pcr$subject.id <- as.numeric(total.pcr$subject.id)
-total.pcr <- total.pcr[order(total.pcr$subject.id),]
+total.pcr <- total.pcr[order(total.pcr$subject.id), ]
 total.pcr <- rename(total.pcr, subject.id = subject.id)
 total.pcr$Well.Name[total.pcr$Well.Name == '42_16'] <- '42_18'
 total.pcr$Well.Name[total.pcr$Well.Name == '2110_2'] <- '210_2'
@@ -1543,7 +1464,7 @@ nrow(total.pcr)
 ncol(total.pcr)
 
 #### Before merging PCR data with subtype, need the subtypes ####
-## In order to do this, we will interrupt the flow of the: script to insert a section from the subtype script
+## In order to do this, we will insert the subtype script
 
 #### **** Using Script: Jing and Dr. Milton's "Subtype analysis.R" **** ####
 
