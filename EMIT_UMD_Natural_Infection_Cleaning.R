@@ -1658,6 +1658,12 @@ finalsubtype$type.inf <- as.character(finalsubtype$type.inf)
 indeterminate <- finalsubtype %>% 
   filter(type.inf == 'Indeterminate')
 finalsubtype$type.inf[finalsubtype$subject.id == 95] <- 'B and unsubtypable A'
+finalsubtype$type.inf[finalsubtype$subject.id == 176] <- 'H3N2' 
+finalsubtype$type.inf[finalsubtype$subject.id == 335] <- 'B' 
+finalsubtype$type.inf[finalsubtype$subject.id == 64] <- 'Unsubtypable A' 
+
+# Write out this finalsubtype
+saveRDS(finalsubtype, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
 
 #### READ in and work with "2016.06.17 1st visit NP swab subtyping II.csv" ####
 
@@ -1678,7 +1684,7 @@ n2 <- part2 %>%
 
 # Generate a new column for subject_ID which can be obtained from sample_ID
 n2 <- n2 %>% 
-  mutate(subject_id=gsub('_[1-9]*_[0-Z]*[0-Z]*[0-Z]*[0-Z]*', '', Well.Name)) %>% 
+  mutate(subject_id = gsub('_[1-9]*_[0-Z]*[0-Z]*[0-Z]*[0-Z]*', '', Well.Name)) %>% 
   mutate(subject_id = gsub('nf[0-Z]*', '', subject_id)) %>% 
   mutate(subject_id = gsub('dm[0-Z]*', '', subject_id)) %>%
   mutate(types = gsub('[0-9]*_[0-9]*', '', Well.Name))
@@ -1686,12 +1692,7 @@ n2$subject_id <- as.numeric(n2$subject_id)
 n2 <- n2 %>% 
   arrange(subject_id)
 
-finalsubtype$type.inf[finalsubtype$subject.id == 176] <- 'H3N2' 
-finalsubtype$type.inf[finalsubtype$subject.id == 335] <- 'B' 
-finalsubtype$type.inf[finalsubtype$subject.id == 64] <- 'Unsubtypable A' 
-
-# Write out this finalsubtype
-saveRDS(finalsubtype, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
+#### Nothing ever gets done with the above n2 object. Is this correct? ####
 
 #### Merge the PCR data with sample virus subtype ####
 
@@ -1701,8 +1702,11 @@ flu.types <- select(flu.types, subject.id, type.inf)
 # incldue subtype in the file
 includetype <- inner_join(total.pcr, flu.types, by = "subject.id")
 includetype <- rename(includetype, sample.id = Well.Name)
+
 includetype1 <- includetype %>% 
   filter(type.inf == 'Negative')
+# Is there a specific purpose of this "includetype1" object, other than viewing data/reporting?
+# It is never used downstream.
 
 #### Merge PCR data with sample type ####
 
@@ -1710,7 +1714,7 @@ allsamples <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT
 sampletype <- allsamples %>% 
   select(subject.id, sample.id, sample.type)
 
-#find out the negative virus subtype but have positive pcr results,From these we can define the virus subtypes of some of the negative cases
+# Find out the negative virus subtype but have positive pcr results. From these we can define the virus subtypes of some of the negative cases
 negative <- includetype %>% 
   filter(type.inf == 'Negative' & Ct..dRn. > 0) %>% 
   select(Experiment, sample.id, Ct..dRn., subject.id, type, type.inf) %>%
@@ -1730,10 +1734,11 @@ updatetype1 <- updatetype %>%
   select(subject.id,type) %>% distinct(subject.id, type)
 updatetype2 <- updatetype1 %>% 
   filter(type == 'A')
-finalsubtype$type.inf[finalsubtype$subject.id == 105] <- 'Unsubtypable A' 
-finalsubtype$type.inf[finalsubtype$subject.id == 226] <- 'Unsubtypable A' 
 updatetype3 <- updatetype1 %>% 
   filter(type == 'B')
+
+finalsubtype$type.inf[finalsubtype$subject.id == 105] <- 'Unsubtypable A' 
+finalsubtype$type.inf[finalsubtype$subject.id == 226] <- 'Unsubtypable A' 
 # finalsubtype$type.inf[finalsubtype$subject.id == 52] <- 'B'
 # finalsubtype$type.inf[finalsubtype$subject.id == 58] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 223] <- 'B'
@@ -1756,20 +1761,6 @@ finalenrolltype <- finalenrolltype %>%
 
 saveRDS(finalenrolltype, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
 
-#### Check that all the negative subjects do not have any positive GII or 2nd/3rd np positive PCR samples ####
-
-flu.typesenroll <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
-flu.typesenroll <- select(flu.typesenroll,subject.id, type.inf)
-
-#incldue subtype in the file
-includetypeenroll <- inner_join(total.pcr, flu.typesenroll, by = "subject.id") %>%
-  rename(sample.id = Well.Name)
-includetypeenrollneg <- includetypeenroll %>% 
-  filter(type.inf == 'Negative') %>%
-  inner_join(allsamples, by = c("subject.id", "sample.id")) %>% 
-  filter(focus.ct > 0)
-# 50, 234, 306 are negative cases with all samples negative for PCR, but 50_3, 234_3, 306_3 are positive for focus assay
-
 finalenrollepositive <- finalenrolltype %>% 
   filter(!type.inf == 'Negative')
 
@@ -1786,6 +1777,20 @@ B <- finalenrolltype %>%
 
 Pandemic.H1 <- finalenrolltype %>% 
   filter(type.inf == 'Pandemic H1')
+
+#### Check that all the negative subjects do not have any positive GII or 2nd/3rd np positive PCR samples ####
+
+flu.typesenroll <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+flu.typesenroll <- select(flu.typesenroll,subject.id, type.inf)
+
+#incldue subtype in the file
+includetypeenroll <- inner_join(total.pcr, flu.typesenroll, by = "subject.id") %>%
+  rename(sample.id = Well.Name)
+includetypeenrollneg <- includetypeenroll %>% 
+  filter(type.inf == 'Negative') %>%
+  inner_join(allsamples, by = c("subject.id", "sample.id")) %>% 
+  filter(focus.ct > 0)
+# 50, 234, 306 are negative cases with all samples negative for PCR, but 50_3, 234_3, 306_3 are positive for focus assay
 
 #### READ in "EMIT_subtypes_enrolled_positive.RDS" ####
 
@@ -1965,10 +1970,8 @@ nrow(npA)
 ncol(npA)
 
 npA <- npA %>% 
-  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name))
-npA <- npA %>% 
-  mutate(subject.id = gsub('_A', '', subject.id))
-npA <- npA %>% 
+  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name)) %>% 
+  mutate(subject.id = gsub('_A', '', subject.id)) %>% 
   mutate(subject.id = gsub('nfA', '', subject.id))
 npA[npA == "No Ct"] <- ''
 npA$copies.in <- as.numeric(npA$copies.in)
@@ -1977,8 +1980,7 @@ npA <- npA %>%
 npA <- npA[order(npA$subject.id), ]
 npA$result.type <- 'A'
 npA <- npA %>%
-  mutate(sample.id = gsub('_A', '', Well.Name))
-npA <- npA %>% 
+  mutate(sample.id = gsub('_A', '', Well.Name)) %>% 
   mutate(sample.id = gsub('_InfA', '', sample.id))
 npA$sample.id[npA$sample.id == '118_1_1'] <- '118_1' 
 npA$sample.id[npA$sample.id == '69_1_1'] <- '69_1' 
@@ -1995,10 +1997,9 @@ nrow(npA)
 # Number of columns in first NP influenza A PCR data
 ncol(npA)
 
-npA <- rename(npA, Ct = Ct..dRn., type = result.type)
 npA <- npA %>%
-  select(-Well.Name)
-npA <- npA %>%
+  rename(npA, Ct = Ct..dRn., type = result.type) %>%
+  select(-Well.Name) %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
 npAfinal <- left_join(npA, npAcali, by = 'date')
 #These samples were done by Jake and he did not put inter-run calibrators in the experiments, so the adjustment calibrators are missing
@@ -2016,18 +2017,12 @@ npB <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/20
 
 names(npB)
 npB <- npB %>%
-  filter(Ct..dRn. != 'Reference')
-npB <- npB %>%
-  filter(!grepl('_Low', Well.Name))
-npB <- npB %>%
-  filter(!grepl('NTC', Well.Name))
-npB <- npB %>%
-  filter(!grepl('Standard', Well.Type))
-npB <- npB %>%
-  filter(!grepl('High', Well.Name))
-npB <- npB %>%
-  filter(grepl('_', Well.Name))
-npB <- npB %>%
+  filter(Ct..dRn. != 'Reference') %>%
+  filter(!grepl('_Low', Well.Name)) %>%
+  filter(!grepl('NTC', Well.Name)) %>%
+  filter(!grepl('Standard', Well.Type)) %>%
+  filter(!grepl('High', Well.Name)) %>%
+  filter(grepl('_', Well.Name)) %>%
   select(-Well, -Well.Type, -Threshold..dRn.)
 npB <- rename(npB, copies.in = Quantity..copies.)
 
@@ -2037,10 +2032,8 @@ nrow(npB)
 ncol(npB)
 
 npB <- npB %>%
-  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name))
-npB <- npB %>%
-  mutate(subject.id = gsub('_B', '', subject.id))
-npB <- npB %>%
+  mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name)) %>%
+  mutate(subject.id = gsub('_B', '', subject.id)) %>%
   mutate(subject.id = gsub('nfB', '', subject.id))
 npB[npB == "No Ct"]<-''
 npB$copies.in <- as.numeric(npB$copies.in)
@@ -2049,8 +2042,7 @@ npB <- npB %>%
 npB <- npB[order(npB$subject.id),]
 npB$result.type <-'B'
 npB <- npB %>%
-  mutate(sample.id = gsub('_B', '', Well.Name))
-npB <- npB %>%
+  mutate(sample.id = gsub('_B', '', Well.Name)) %>%
   mutate(sample.id = gsub('_InfB', '', sample.id))
 npB$sample.id[npB$sample.id == '118_1_1'] <- '118_1' 
 npB$sample.id[npB$sample.id == '210_1_1'] <- '210_1' 
@@ -2068,8 +2060,7 @@ ncol(npB)
 
 npB <- rename(npB, Ct = Ct..dRn., type = result.type)
 npB <- npB %>%
-  select(-Well.Name)
-npB <- npB %>%
+  select(-Well.Name) %>%
   mutate(date = gsub('^[0-9]*.', '',Experiment))
 npBfinal <- left_join(npB ,npBcali, by = 'date')
 npBfinal$virus.copies <- npBfinal$copy.num*npBfinal$cfactor
