@@ -20,7 +20,7 @@ sessionInfo() # for reproducibility
 # Now pasting code from Jing Yan and Don Milton that was used in previous work on the EMIT UMD data.
 # The goal here is to review their script and improve the clarity
 
-#### **** Using Script: Jing Yan and Dr. Milton's "Merge_1-3.R-update.r" **** ####
+#### **** Using Script: Jing Yan and Dr. Milton's "Merge 1-3-update.R" **** ####
 
 ##
 # Original file information:
