@@ -13,7 +13,7 @@ library(knitr)
 library(data.table)
 library(lubridate)
 
-setwd("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake")
+setwd("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection")
 
 sessionInfo() # for reproducibility
 
@@ -88,7 +88,7 @@ sessionInfo() # for reproducibility
 
 #### READ in and work with CLINICAL DATABASE ####
 
-clinical_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
+clinical_in_file <- 'UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
 clinical_umd <- read.csv(clinical_in_file)
 
 # Let's produce some summary information about this clinical_umd df
@@ -180,7 +180,7 @@ print(head(tbl_df(sum_clinical)))
 
 #### READ in and work with G2 LOG DATA ####
 
-g2_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
+g2_in_file <- 'UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
 g2_log <- read.csv(g2_in_file)
 
 print(nrow(g2_log))
@@ -386,7 +386,7 @@ print(head(tbl_df(merge1)))
 #### READ in and work with the FIELD SAMPLE DATABASE ####
 
 # Input Field Sample Data
-field_db_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
+field_db_in_file <- 'UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
 field.db <- read.csv(field_db_in_file, as.is = T)
 
 print(head(tbl_df(field.db)))
@@ -560,7 +560,7 @@ merge2$merge2.i <- T
 print(head(tbl_df(merge2)))
 
 #### READ in and work with the UMD SAMPLES DATABASE (REDCAP DATA) ####
-sample_in_file <- 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv'
+sample_in_file <- 'UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv'
 sample_in <- read.csv(sample_in_file, as.is = T)
 
 sample_in$count_tech <- as.factor(sample_in$count_tech)
@@ -1025,7 +1025,7 @@ samples.cc <- merge3 %>%
 
 #### Write out EMIT_samples.cc.RDS file from merge of Clin DB + G2 Log + Field Sample DB ####
 
-saveRDS(samples.cc, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
+saveRDS(samples.cc, file = "Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
 
 #### **** Using Script: Jing's "interun calibration.R" **** ####
 
@@ -1075,7 +1075,7 @@ ctLB1np = -3.297*log10(low) + 34.45
 ctHB1np = -3.297*log10(high) + 34.45
 
 #### READ in *"2016.08.05 1st visit NP swab FluA quant.csv"* ####
-fluAnp <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluA quant.csv', as.is = T)
+fluAnp <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluA quant.csv', as.is = T)
 fluAnp <- fluAnp %>% 
   filter(Ct..dRn. != 'Reference')
 fluAnp$Ct..dRn. <- as.numeric(fluAnp$Ct..dRn.)
@@ -1107,10 +1107,10 @@ fluAnp3 <- fluAnp3 %>%
 fluAnp4 <- fluAnp3 %>% 
   select(date, cfactor)
 
-saveRDS(fluAnp4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluA_1np_calibration.RDS")
+saveRDS(fluAnp4, "Curated Data/Cleaned Data/fluA_1np_calibration.RDS")
 
 #### READ in *"2016.08.05 1st visit NP swab FluB quant.csv"* ####
-fluBnp <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
+fluBnp <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
 fluBnp <- fluBnp %>%
   filter(Ct..dRn. != 'Reference')
 fluBnp$Ct..dRn. <- as.numeric(fluBnp$Ct..dRn.)
@@ -1146,7 +1146,7 @@ fluBnp3 <- fluBnp3 %>%
 fluBnp4 <- fluBnp3 %>%
   select(date, cfactor)
 
-saveRDS(fluBnp4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_1np_calibration.RDS")
+saveRDS(fluBnp4, "Curated Data/Cleaned Data/fluB_1np_calibration.RDS")
 
 #### READ in and work with the 4 PCR raw datafiles for flu A (not including the '1st visit' file) ####
 # READ in "2016.08.08 GII and repeat NP swab FluA part Ia.csv" 
@@ -1154,10 +1154,10 @@ saveRDS(fluBnp4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_1np_
 # READ in "2016.08.05 GII and repeat NP swab FluA Part II.csv" 
 # READ in "2016.08.05 GII and repeat NP swabs FluA part III.csv" 
 
-fluAI1 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ia.csv', as.is = T)
-fluAI2 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ib.csv', as.is = T)
-fluAII <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 GII and repeat NP swab FluA Part II.csv', as.is = T)
-fluAIII <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 GII and repeat NP swabs FluA part III.csv', as.is = T)
+fluAI1 <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ia.csv', as.is = T)
+fluAI2 <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ib.csv', as.is = T)
+fluAII <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 GII and repeat NP swab FluA Part II.csv', as.is = T)
+fluAIII <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 GII and repeat NP swabs FluA part III.csv', as.is = T)
 
 fluAI <- rbind(fluAI1, fluAI2) %>% 
   ungroup
@@ -1208,16 +1208,16 @@ fluA3 <- fluA3 %>%
 fluA4 <- fluA3 %>%
   select(date, cfactor)
 
-saveRDS(fluA4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluA_calibration.RDS")
+saveRDS(fluA4, "Curated Data/Cleaned Data/fluA_calibration.RDS")
 
 #### READ in and work with the 3 PCR raw datafiles for flu B (not including the '1st visit' file) ####
 # Read in: "2016.08.08 GII and repeat NP swab FluB part Ia.csv"
 # Read in: "2016.08.08 GII and repeat NP swab FluB part Ib.csv"
 # Read in: "2016.06.24 GII and repeat NP swab FluB part II.csv"
 
-fluBI1 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ia.csv', as.is = T)
-fluBI2 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ib.csv', as.is = T)
-fluBII <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.06.24 GII and repeat NP swab FluB part II.csv', as.is = T)
+fluBI1 <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ia.csv', as.is = T)
+fluBI2 <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ib.csv', as.is = T)
+fluBII <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.06.24 GII and repeat NP swab FluB part II.csv', as.is = T)
 
 fluBI <- rbind(fluBI1, fluBI2) %>% 
   ungroup
@@ -1264,7 +1264,7 @@ fluB3 <- fluB3 %>%
 fluB4 <- fluB3 %>%
   select(date, cfactor)
 
-saveRDS(fluB4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_calibration.RDS")
+saveRDS(fluB4, "Curated Data/Cleaned Data/fluB_calibration.RDS")
 
 #### **** Using Script: Jing and Dr. Milton's "np fine coarse pcr quantity.R"**** ####
 
@@ -1290,13 +1290,13 @@ saveRDS(fluB4, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_calibr
 ###
 
 #### READ in "fluA_calibration.RDS" ####
-fluAcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluA_calibration.RDS")
+fluAcali <- readRDS("Curated Data/Cleaned Data/fluA_calibration.RDS")
 
 #### READ in "2016.08.08 GII and repeat NP swab FluA part Ia.csv" ####
-pcr_A1a <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ia.csv', as.is = T)
+pcr_A1a <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ia.csv', as.is = T)
 
 #### READ in "2016.08.08 GII and repeat NP swab FluA part Ib.csv" ####
-pcr_A1b <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ib.csv', as.is = T)
+pcr_A1b <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluA part Ib.csv', as.is = T)
 
 # Bind the two flu A files together
 pcr_A1 <- rbind(pcr_A1a, pcr_A1b) %>%
@@ -1329,7 +1329,7 @@ pcr_A1 <- pcr_A1[order(pcr_A1$Well.Name), ]
 
 #### READ in "2016.08.05 GII and repeat NP swab FluA Part II.csv" ####
 
-pcr_A2 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.08.05 GII and repeat NP swab FluA Part II.csv',as.is=T)
+pcr_A2 <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.05 GII and repeat NP swab FluA Part II.csv',as.is=T)
 names(pcr_A2)
 
 pcr_A2 <- pcr_A2 %>%
@@ -1356,7 +1356,7 @@ pcr_A2 <- pcr_A2[order(pcr_A2$Well.Name), ]
 
 #### READ in "2016.08.05 GII and repeat NP swabs FluA part III.csv" ####
 
-pcr_A3 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.08.05 GII and repeat NP swabs FluA part III.csv', as.is = T)
+pcr_A3 <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.05 GII and repeat NP swabs FluA part III.csv', as.is = T)
 names(pcr_A3)
 pcr_A3 <- pcr_A3 %>% 
   filter(Ct..dRn. != 'Reference') %>% 
@@ -1400,13 +1400,13 @@ pcr_Afinal <- left_join(pcr_A, fluAcali, by = 'date')
 pcr_Afinal$virus.copies <- pcr_Afinal$copy.num*pcr_Afinal$cfactor
 
 #### READ in "fluB_calibration.RDS" ####
-fluBcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_calibration.RDS")
+fluBcali <- readRDS("Curated Data/Cleaned Data/fluB_calibration.RDS")
 
 #### READ in "2016.08.08 GII and repeat NP swab FluB part Ia.csv" ####
-pcr_B1a <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ia.csv', as.is = T)
+pcr_B1a <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ia.csv', as.is = T)
 
 #### READ in "2016.08.08 GII and repeat NP swab FluB part Ib.csv" ####
-pcr_B1b <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ib.csv', as.is = T)
+pcr_B1b <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat NP swab FluB part Ib.csv', as.is = T)
 
 #### Work with the fluB pcr data ####
 
@@ -1435,7 +1435,7 @@ nrow(pcr_B1)
 ncol(pcr_B1)
 
 #### READ in "2016.06.24 GII and repeat NP swab FluB part II.csv" ####
-pcr_B2 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR data/PCR results/2016.06.24 GII and repeat NP swab FluB part II.csv',as.is=T)
+pcr_B2 <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.06.24 GII and repeat NP swab FluB part II.csv',as.is=T)
 names(pcr_B2)
 
 pcr_B2 <- pcr_B2 %>%
@@ -1533,7 +1533,7 @@ ncol(total.pcr)
 
 #### READ in and work with "2016.06.17 1st visit NP swab subtyping.csv" ####
 
-part1 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR Results/2016.06.17 1st visit NP swab subtyping.csv', as.is = T)
+part1 <- read.csv('UMD_Raw_Data/PCR Data/PCR Results/2016.06.17 1st visit NP swab subtyping.csv', as.is = T)
 part1 <- part1 %>% 
   select(-Well, -Well.Type, -Threshold..dR.)
 
@@ -1701,11 +1701,11 @@ finalsubtype$type.inf[finalsubtype$subject.id == 335] <- 'B'
 finalsubtype$type.inf[finalsubtype$subject.id == 64] <- 'Unsubtypable A' 
 
 # Write out this finalsubtype
-saveRDS(finalsubtype, file = "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
+saveRDS(finalsubtype, file = "Curated Data/Cleaned Data/EMIT_subtypes.RDS")
 
 #### READ in and work with "2016.06.17 1st visit NP swab subtyping II.csv" ####
 
-part2 <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.06.17 1st visit NP swab subtyping II.csv', as.is = T)
+part2 <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.06.17 1st visit NP swab subtyping II.csv', as.is = T)
 part2 <- part2 %>% 
   select(-Well, -Well.Type, -Threshold..dR.)
 
@@ -1734,7 +1734,7 @@ n2 <- n2 %>%
 
 #### Merge the PCR data with sample virus subtype ####
 
-flu.types <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes.RDS")
+flu.types <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes.RDS")
 flu.types <- select(flu.types, subject.id, type.inf)
 
 # incldue subtype in the file
@@ -1748,7 +1748,7 @@ includetype1 <- includetype %>%
 
 #### Merge PCR data with sample type ####
 
-allsamples <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
+allsamples <- readRDS("Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
 sampletype <- allsamples %>% 
   select(subject.id, sample.id, sample.type)
 
@@ -1761,13 +1761,13 @@ negative <- includetype %>%
 # Subjects with negative sample type but positive pcr results from either GII sample or 2rd/3rd NP swab.
 print(negative)
 
-saveRDS(negative, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
+saveRDS(negative, "Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
 
 ## Based on the pcr results from GII samples or 2rd/3rd np, we have modified a few subjects' subtype
 
 #### READ in "negative subtype sample with positive pcr.RDS" ####
 
-updatetype <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
+updatetype <- readRDS("Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
 
 updatetype1 <- updatetype %>% 
   select(subject.id,type) %>% 
@@ -1791,7 +1791,7 @@ finalsubtype$type.inf[finalsubtype$subject.id == 365] <- 'B'
 
 #### READ in "EMIT_samples.cc.RDS" ####
 
-enrollcheck <- readRDS('EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS') %>% 
+enrollcheck <- readRDS('Curated Data/Cleaned Data/EMIT_samples.cc.RDS') %>% 
   select(subject.id,enrolled) %>% 
   distinct(subject.id,enrolled, .keep_all = TRUE) %>% 
   filter(enrolled == TRUE)
@@ -1801,12 +1801,12 @@ finalenrolltype <- finalenrolltype[order(finalenrolltype$subject.id), ]
 finalenrolltype <- finalenrolltype %>% 
   select(subject.id, type.inf)
 
-saveRDS(finalenrolltype, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+saveRDS(finalenrolltype, "Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
 
 finalenrollepositive <- finalenrolltype %>% 
   filter(!type.inf == 'Negative')
 
-saveRDS(finalenrollepositive, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
+saveRDS(finalenrollepositive, "Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
 
 negative <- finalenrolltype %>% 
   filter(type.inf == 'Negative')
@@ -1822,7 +1822,7 @@ Pandemic.H1 <- finalenrolltype %>%
 
 #### Check that all the negative subjects do not have any positive GII or 2nd/3rd np positive PCR samples ####
 
-flu.typesenroll <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+flu.typesenroll <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
 flu.typesenroll <- select(flu.typesenroll, subject.id, type.inf)
 
 #incldue subtype in the file
@@ -1836,7 +1836,7 @@ includetypeenrollneg <- includetypeenroll %>%
 
 #### READ in "EMIT_subtypes_enrolled_positive.RDS" ####
 
-flu.typepositive <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
+flu.typepositive <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
 
 #### Check the unmatched cases between sample virus subtype and PCR results ####
 
@@ -1923,7 +1923,7 @@ allPCR.B <- rename(allPCR.B, Ct = CtB, virus.copies = virus.copiesB, type = type
 allPCRfinal <- rbind(allPCR.A, allPCR.B) %>% 
   ungroup
 
-saveRDS(allPCRfinal, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/pcr data for gii and 2nd&3rd np.RDS")
+saveRDS(allPCRfinal, "Curated Data/Cleaned Data/pcr data for gii and 2nd&3rd np.RDS")
 
 #### Check to make sure no repeats ####
 
@@ -1987,14 +1987,14 @@ print(no.repeats.pos.2)
 ## However, in this new setup, we have saved the EMIT_subtypes_enrolled_positive.RDS in: 
 # ... EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data
 
-flu.types <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
+flu.types <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
 flu.types <- select(flu.types, subject.id, type.inf)
 
 #### READ in "fluA_1np_calibration.RDS" ####
-npAcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluA_1np_calibration.RDS")
+npAcali <- readRDS("Curated Data/Cleaned Data/fluA_1np_calibration.RDS")
 
 #### READ in "2016.08.05 1st visit NP swab FluA quant.csv" ####
-npA <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluA quant.csv', as.is = T)
+npA <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluA quant.csv', as.is = T)
 
 #### Work with the above 2 dfs ####
 names(npA)
@@ -2055,10 +2055,10 @@ npAfinal$virus.copies <- npAfinal$copy.num*npAfinal$cfactor
 #### Now working with the flu B calibrations ####
 
 #### READ in "fluB_1np_calibration.RDS" ####
-npBcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_1np_calibration.RDS")
+npBcali <- readRDS("Curated Data/Cleaned Data/fluB_1np_calibration.RDS")
 
 #### READ in "2016.08.05 1st visit NP swab FluB quant.csv" ####
-npB <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
+npB <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
 
 names(npB)
 
@@ -2147,4 +2147,4 @@ npfirstpositiveupdate <- npfirstpositiveupdate[order(npfirstpositiveupdate$subje
 
 npfirstpositiveupdate$sample.type <- 'Nasopharyngeal swab'
 
-saveRDS(npfirstpositiveupdate, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
+saveRDS(npfirstpositiveupdate, "Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
