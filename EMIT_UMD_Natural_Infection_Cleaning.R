@@ -137,17 +137,17 @@ clinical_g2$g2_run <- ifelse(clinical_g2$redcap_event_name == 'g2_run_1_arm_1', 
 # Find the G2 first time sample collection data
 clinical_g2_1 <- clinical_g2 %>% 
   filter(grepl('^g2_run_1', redcap_event_name)) %>%
-  select(field_subj_id, redcap_event_name, date_g2_1,g2_run) %>%
+  select(field_subj_id, redcap_event_name, date_g2_1, g2_run) %>%
   rename(date_visit = date_g2_1)
 
 # Find the G2 2nd and 3rd time sample collection data
 clinical_g2_23 <- clinical_g2 %>%
-  filter(!grepl('^g2_run_1',redcap_event_name)) %>% 
-  select(field_subj_id,redcap_event_name,date_visit,g2_run)
+  filter(!grepl('^g2_run_1', redcap_event_name)) %>% 
+  select(field_subj_id, redcap_event_name, date_visit, g2_run)
 
 # Merge the G2 sample collection visits (1, 2, and 3) together into the clinical_g2 df
 clinical_g2 <- merge(clinical_g2_1, clinical_g2_23, 
-                     c('field_subj_id','date_visit','redcap_event_name','g2_run'), all=TRUE)
+                     c('field_subj_id','date_visit','redcap_event_name','g2_run'), all = TRUE)
 
 sum_clinical <- merge(select(clinical_visit, -contains("date_g2_1")), clinical_g2, 
                       c('field_subj_id', 'date_visit'), all = TRUE)
@@ -233,6 +233,10 @@ g2_log <- g2_log %>%
 
 g2_log_min <- g2_log %>% 
   select(subject_id, redcap_event_name, date_visit, subj_min)
+# Not sure if we need to keep the cough_cough and subject_min data in here.
+# However, note that at this point much of the cough data is missing 
+# These mising cough values can be filled in based on the audio recordings.
+# Adding in the audio recording cough data is done elsewhere, but need to find where?
 
 g2_log_min$g2_coll_num <- ifelse(g2_log_min$redcap_event_name == 'baseline_and_colle_arm_1', 1, 
                               ifelse(g2_log_min$redcap_event_name == 'collection_2_arm_1', 2, 3)) 
@@ -374,7 +378,7 @@ t2
 merge1$merge1.i <- T #indicator for record in merge1
 
 # Cross tab tables of data in merge1
-print(ftable(addmargins(with(merge1, table(visit_num, g2_run, g2_coll_num, exclude=c())))))
+print(ftable(addmargins(with(merge1, table(visit_num, g2_run, g2_coll_num, exclude = c())))))
 
 # Variables in merge1
 print(head(tbl_df(merge1)))
@@ -547,7 +551,7 @@ nrow(x)
 print(tbl_df(inner_join(merge1, x, by = "field_subj_id")))
 
 # Source of data in rows of merge2 after removing 135_6.
-print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude=c())))))
+print(ftable(addmargins(with(merge2, table(merge1.i, field.db1.i, exclude = c())))))
 
 # Giving an indicator variable to this finalized merge2 df
 merge2$merge2.i <- T
@@ -1075,25 +1079,31 @@ fluAnp <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results
 fluAnp <- fluAnp %>% 
   filter(Ct..dRn. != 'Reference')
 fluAnp$Ct..dRn. <- as.numeric(fluAnp$Ct..dRn.)
+
 fluAnp1 <- fluAnp %>% 
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluAnplow <- fluAnp1 %>% 
   filter(grepl('_Low', Well.Name))
 fluAnplow$dif <- fluAnplow$Ct..dRn.-ctLA1np
+
 fluAnphigh <- fluAnp1 %>%
   filter(grepl('_High', Well.Name))
 fluAnphigh$dif <- fluAnphigh$Ct..dRn.-ctHA1np
+
 fluAnp2 <- rbind(fluAnplow, fluAnphigh) %>% 
   ungroup
 fluAnp2 <- fluAnp2[order(fluAnp2$Experiment),]
 fluAnp2 <- fluAnp2 %>% 
   mutate(date = gsub('^[0-9]*.', '', Experiment))
+
 fluAnp3 <- fluAnp2 %>%
   group_by(date) %>%
   mutate(avgdiff = mean(dif))
 fluAnp3$cfactor <- 10^((fluAnp3$avgdiff) / 3.346)
 fluAnp3 <- fluAnp3 %>% 
-  distinct(date, cfactor)
+  distinct(date, cfactor, .keep_all = TRUE)
+
 fluAnp4 <- fluAnp3 %>% 
   select(date, cfactor)
 
@@ -1104,29 +1114,35 @@ fluBnp <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results
 fluBnp <- fluBnp %>%
   filter(Ct..dRn. != 'Reference')
 fluBnp$Ct..dRn. <- as.numeric(fluBnp$Ct..dRn.)
+
 fluBnp1 <- fluBnp %>% 
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluBnplow <- fluBnp1 %>% 
   filter(grepl('_Low', Well.Name))
 fluBnplow$dif <- fluBnplow$Ct..dRn.-ctLB1np
 fluBnplow <-fluBnplow %>%
   filter(!is.na(Ct..dRn.))
+
 fluBnphigh <- fluBnp1 %>% 
   filter(grepl('_High', Well.Name))
 fluBnphigh$dif <- fluBnphigh$Ct..dRn.-ctHB1np
 fluBnphigh <- fluBnphigh %>% 
   filter(!is.na(Ct..dRn.))
+
 fluBnp2 <- rbind(fluBnplow, fluBnphigh) %>% 
   ungroup
 fluBnp2 <- fluBnp2[order(fluBnp2$Experiment), ]
-fluBnp2 <-fluBnp2 %>% 
+fluBnp2 <- fluBnp2 %>% 
   mutate(date = gsub('^[0-9]*.', '', Experiment))
+
 fluBnp3 <- fluBnp2 %>% 
   group_by(date) %>%
   mutate(avgdiff = mean(dif))
 fluBnp3$cfactor <- 10^((fluBnp3$avgdiff) / 3.297)
 fluBnp3 <- fluBnp3 %>% 
-  distinct(date, cfactor)
+  distinct(date, cfactor, .keep_all = TRUE)
+
 fluBnp4 <- fluBnp3 %>%
   select(date, cfactor)
 
@@ -1150,35 +1166,45 @@ fluAI <- fluAI %>%
 fluAI$Ct..dRn. <- as.numeric(fluAI$Ct..dRn.)
 fluAI <- fluAI %>% 
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluAII <- fluAII %>% 
   filter(Ct..dRn. != 'Reference')
 fluAII$Ct..dRn. <- as.numeric(fluAII$Ct..dRn.)
+
 fluAII1 <- fluAII %>% 
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluAIII <- fluAIII %>% 
   filter(Ct..dRn. != 'Reference')
 fluAIII$Ct..dRn. <- as.numeric(fluAIII$Ct..dRn.)
+
 fluAIII1 <- fluAIII %>% 
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluA1 <- rbind(fluAI, fluAII1, fluAIII1) %>%
   ungroup
+
 fluA1low <- fluA1 %>%
   filter(grepl('_Low', Well.Name))
 fluA1low$dif <- fluA1low$Ct..dRn.-ctLAII
+
 fluA1high <- fluA1 %>%
   filter(grepl('_High',Well.Name))
 fluA1high$dif <- fluA1high$Ct..dRn.-ctHAII
-fluA2 <- rbind(fluA1low,fluA1high) %>% 
+
+fluA2 <- rbind(fluA1low, fluA1high) %>% 
   ungroup
-fluA2 <- fluA2[order(fluA2$Experiment),]
+fluA2 <- fluA2[order(fluA2$Experiment), ]
 fluA2 <- fluA2 %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
+
 fluA3 <- fluA2 %>% 
   group_by(date) %>% 
   mutate(avgdiff = mean(dif))
 fluA3$cfactor <- 10^((fluA3$avgdiff) / 3.143)
 fluA3 <- fluA3 %>%
-  distinct(date, cfactor)
+  distinct(date, cfactor, .keep_all = TRUE)
+
 fluA4 <- fluA3 %>%
   select(date, cfactor)
 
@@ -1198,21 +1224,28 @@ fluBI <- rbind(fluBI1, fluBI2) %>%
 fluBI <- fluBI %>% 
   filter(Ct..dRn. != 'Reference')
 fluBI$Ct..dRn. <- as.numeric(fluBI$Ct..dRn.)
+
 fluBI1 <- fluBI %>%
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluBII <- fluBII %>%
   filter(Ct..dRn. != 'Reference')
 fluBII$Ct..dRn. <- as.numeric(fluBII$Ct..dRn.)
+
 fluBII1 <- fluBII %>%
   select(Experiment, Well.Name, Ct..dRn.)
+
 fluB1 <- rbind(fluBI1, fluBII1) %>%
   ungroup
+
 fluB1low <- fluB1 %>% 
   filter(grepl('_Low', Well.Name))
 fluB1low$dif <- fluB1low$Ct..dRn.-ctLBII
+
 fluB1high <- fluB1 %>%
   filter(grepl('_High', Well.Name))
 fluB1high$dif <- fluB1high$Ct..dRn.-ctHBII
+
 fluB2 <- rbind(fluB1low, fluB1high) %>% 
   ungroup
 fluB2 <- fluB2[order(fluB2$Experiment),]
@@ -1220,12 +1253,14 @@ fluB2 <-fluB2 %>%
   filter(!is.na(Ct..dRn.))
 fluB2 <- fluB2 %>%
   mutate(date = gsub('^[0-9]*.','',Experiment))
+
 fluB3 <- fluB2 %>%
   group_by(date) %>%
   mutate(avgdiff = mean(dif))
 fluB3$cfactor <- 10^((fluB3$avgdiff) / 3.167)
 fluB3 <- fluB3 %>%
-  distinct(date, cfactor)
+  distinct(date, cfactor, .keep_all = TRUE)
+
 fluB4 <- fluB3 %>%
   select(date, cfactor)
 
@@ -1391,7 +1426,7 @@ pcr_B1 <- pcr_B1 %>%
   select(-Well.Type,-Replicate,-Threshold..dRn.,-Well) %>% 
   mutate(subject.id = gsub('_[0-9]*','',Well.Name))
 pcr_B1 <- rename(pcr_B1, copies.in = Quantity..copies.)
-pcr_B1[pcr_B1 == "No Ct"]<-''
+pcr_B1[pcr_B1 == "No Ct"] <- ''
 pcr_B1$copies.in <- as.numeric(pcr_B1$copies.in)
 
 # Number of rows in part1 (gii and 2rd or 3rd NP samples) influenza B PCR data
@@ -1439,6 +1474,7 @@ ncol(pcr_B)
 pcr_B <- pcr_B[order(pcr_B$subject.id), ]
 pcr_B <- pcr_B %>% 
   mutate(date = gsub('^[0-9]*.', '', Experiment))
+
 pcr_Bfinal <- left_join(pcr_B, fluBcali, by = 'date')
 pcr_Bfinal$virus.copies <- pcr_Bfinal$copy.num*pcr_Bfinal$cfactor
 
@@ -1655,8 +1691,10 @@ finalsubtype$type.inf <-
   factor(finalsubtype$type.inf, levels = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
          labels = c('seasonal H1','H3N2','Pandemic H1','B','Negative','H3N2 and B','H3N2 and PH1','B and PH1','Indeterminate','bad assay'))
 finalsubtype$type.inf <- as.character(finalsubtype$type.inf)
+
 indeterminate <- finalsubtype %>% 
   filter(type.inf == 'Indeterminate')
+
 finalsubtype$type.inf[finalsubtype$subject.id == 95] <- 'B and unsubtypable A'
 finalsubtype$type.inf[finalsubtype$subject.id == 176] <- 'H3N2' 
 finalsubtype$type.inf[finalsubtype$subject.id == 335] <- 'B' 
@@ -1730,10 +1768,14 @@ saveRDS(negative, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative
 #### READ in "negative subtype sample with positive pcr.RDS" ####
 
 updatetype <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive pcr.RDS")
+
 updatetype1 <- updatetype %>% 
-  select(subject.id,type) %>% distinct(subject.id, type)
+  select(subject.id,type) %>% 
+  distinct(subject.id, type, .keep_all = TRUE)
+
 updatetype2 <- updatetype1 %>% 
   filter(type == 'A')
+
 updatetype3 <- updatetype1 %>% 
   filter(type == 'B')
 
@@ -1751,7 +1793,7 @@ finalsubtype$type.inf[finalsubtype$subject.id == 365] <- 'B'
 
 enrollcheck <- readRDS('EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_samples.cc.RDS') %>% 
   select(subject.id,enrolled) %>% 
-  distinct(subject.id,enrolled) %>% 
+  distinct(subject.id,enrolled, .keep_all = TRUE) %>% 
   filter(enrolled == TRUE)
 
 finalenrolltype <- semi_join(finalsubtype, enrollcheck, by = 'subject.id')
@@ -1781,7 +1823,7 @@ Pandemic.H1 <- finalenrolltype %>%
 #### Check that all the negative subjects do not have any positive GII or 2nd/3rd np positive PCR samples ####
 
 flu.typesenroll <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
-flu.typesenroll <- select(flu.typesenroll,subject.id, type.inf)
+flu.typesenroll <- select(flu.typesenroll, subject.id, type.inf)
 
 #incldue subtype in the file
 includetypeenroll <- inner_join(total.pcr, flu.typesenroll, by = "subject.id") %>%
@@ -1845,19 +1887,25 @@ allPCR <- allPCR %>%
   filter(!sample.type == 'Throat Swab')
 # Flagged samples all NP swabs, dilution factor is 50
 #66_7 120_7 184_8 188_7 189_7 192_7 196_7 262_7 277_7 284_12 284_7 296_12 296_7
+
 allPCR1 <- allPCR %>% 
   filter(sample.id == '66_7'|sample.id == '120_7' | sample.id == '184_8' | sample.id == '188_7' | sample.id == '189_7' | sample.id == '192_7' | 
            sample.id == '196_7' | sample.id == '262_7' | sample.id == '277_7' | sample.id == '284_12' | sample.id == '284_7' | 
            sample.id == '296_12'| sample.id=='296_7')
+
 allPCR2 <- anti_join(allPCR, allPCR1)
+
 allPCR3 <- allPCR1 %>% 
   mutate(final.copiesA = virus.copiesA*50, final.copiesB = virus.copiesB*50)
+
 allPCR4 <- allPCR2 %>% 
   filter(!sample.type == 'Nasopharyngeal swab') %>% 
   mutate(final.copiesA = virus.copiesA*25,final.copiesB = virus.copiesB*25)
+
 allPCR5 <- allPCR2 %>% 
   filter(sample.type == 'Nasopharyngeal swab') %>%
   mutate(final.copiesA = virus.copiesA*100, final.copiesB = virus.copiesB*100)
+
 allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>% 
   ungroup
 
@@ -1865,10 +1913,12 @@ allPCR.A <- allPCRtotal %>%
   filter(typeA == 'A') %>%
   select(-CtB, -virus.copiesB, -typeB, -final.copiesB)
 allPCR.A <- rename(allPCR.A, Ct = CtA,virus.copies = virus.copiesA, type = typeA,final.copies = final.copiesA)
+
 allPCR.B <- allPCRtotal %>% 
   filter(typeB == 'B') %>%
   select(-CtA, -virus.copiesA, -typeA, -final.copiesA)
 allPCR.B <- rename(allPCR.B, Ct = CtB, virus.copies = virus.copiesB, type = typeB, final.copies = final.copiesB)
+
 # 2. merge the seperated FILE FOR A and B back together, successfully make,- one row for one subject.id
 allPCRfinal <- rbind(allPCR.A, allPCR.B) %>% 
   ungroup
@@ -1949,20 +1999,14 @@ npA <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/20
 #### Work with the above 2 dfs ####
 names(npA)
 npA <- npA %>%
-  filter(Ct..dRn. != 'Reference')
-npA <- npA %>%
-  filter(!grepl('_Low', Well.Name))
-npA <- npA %>%
-  filter(!grepl('NTC', Well.Name))
-npA <- npA %>%
-  filter(!grepl('Standard', Well.Type))
-npA <- npA %>%
-  filter(!grepl('High', Well.Name))
-npA <- npA %>%
-  filter(grepl('_', Well.Name))
-npA <- npA %>%
-  select(-Well, -Well.Type, -Threshold..dRn.)
-npA <- rename(npA, copies.in = Quantity..copies.)
+  filter(Ct..dRn. != 'Reference') %>%
+  filter(!grepl('_Low', Well.Name)) %>%
+  filter(!grepl('NTC', Well.Name)) %>%
+  filter(!grepl('Standard', Well.Type)) %>%
+  filter(!grepl('High', Well.Name)) %>%
+  filter(grepl('_', Well.Name)) %>%
+  select(-Well, -Well.Type, -Threshold..dRn.) %>%
+  rename(copies.in = Quantity..copies.)
 
 # Number of rows in part1 first NP influenza A PCR data
 nrow(npA)
@@ -1998,9 +2042,10 @@ nrow(npA)
 ncol(npA)
 
 npA <- npA %>%
-  rename(npA, Ct = Ct..dRn., type = result.type) %>%
+  rename(Ct = Ct..dRn., type = result.type) %>%
   select(-Well.Name) %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
+
 npAfinal <- left_join(npA, npAcali, by = 'date')
 #These samples were done by Jake and he did not put inter-run calibrators in the experiments, so the adjustment calibrators are missing
 npAfinal$cfactor[npAfinal$sample.id == '176_6'] <- 1
@@ -2016,6 +2061,7 @@ npBcali <- readRDS("EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/fluB_1n
 npB <- read.csv('EMIT_UMD_Natural_Infection/UMD_Raw_Data/PCR Data/PCR results/2016.08.05 1st visit NP swab FluB quant.csv', as.is = T)
 
 names(npB)
+
 npB <- npB %>%
   filter(Ct..dRn. != 'Reference') %>%
   filter(!grepl('_Low', Well.Name)) %>%
@@ -2023,8 +2069,8 @@ npB <- npB %>%
   filter(!grepl('Standard', Well.Type)) %>%
   filter(!grepl('High', Well.Name)) %>%
   filter(grepl('_', Well.Name)) %>%
-  select(-Well, -Well.Type, -Threshold..dRn.)
-npB <- rename(npB, copies.in = Quantity..copies.)
+  select(-Well, -Well.Type, -Threshold..dRn.) %>% 
+  rename(copies.in = Quantity..copies.)
 
 # Number of rows in part1 first NP influenza A PCR data
 nrow(npB)
@@ -2050,7 +2096,7 @@ npB$sample.id[npB$sample.id == '339_1_1'] <- '339_1'
 npB$sample.id[npB$sample.id == '356_1_1'] <- '356_1' 
 npB$sample.id[npB$sample.id == '69_1_1'] <- '69_1' 
 npB$sample.id[npB$sample.id == '70_1_1'] <- '70_1' 
-npB<- npB %>%
+npB <- npB %>%
   distinct(subject.id, Ct..dRn., .keep_all = TRUE)
 
 # Number of rows in first NP influenza A PCR data
@@ -2058,11 +2104,12 @@ nrow(npB)
 # Number of columns in first NP influenza A PCR data
 ncol(npB)
 
-npB <- rename(npB, Ct = Ct..dRn., type = result.type)
 npB <- npB %>%
+  rename(Ct = Ct..dRn., type = result.type) %>%
   select(-Well.Name) %>%
   mutate(date = gsub('^[0-9]*.', '',Experiment))
-npBfinal <- left_join(npB ,npBcali, by = 'date')
+
+npBfinal <- left_join(npB, npBcali, by = 'date')
 npBfinal$virus.copies <- npBfinal$copy.num*npBfinal$cfactor
 
 #### Merging together the fluA and fluB data ####
@@ -2072,13 +2119,22 @@ npfirst$subject.id = as.integer(npfirst$subject.id)
 npfirst <- npfirst[order(npfirst$subject.id), ]
 
 npfirstpositive <- inner_join(npfirst, flu.types, by = c("subject.id"))
-unmatchedfirstnp1 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'H3N2')
-unmatchedfirstnp2 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'Pandemic H1')
-unmatchedfirstnp3 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'Unsubtypable A')
-unmatchedfirstnp4 <- npfirstpositive %>%filter( type == 'B' & type.inf == 'H3N2 and PH1')
-unmatchedfirstnp5 <- npfirstpositive %>%filter( type == 'A' &  type.inf == 'B')
+
+unmatchedfirstnp1 <- npfirstpositive %>% 
+  filter( type == 'B' & type.inf == 'H3N2')
+unmatchedfirstnp2 <- npfirstpositive %>% 
+  filter( type == 'B' & type.inf == 'Pandemic H1')
+unmatchedfirstnp3 <- npfirstpositive %>% 
+  filter( type == 'B' & type.inf == 'Unsubtypable A')
+unmatchedfirstnp4 <- npfirstpositive %>% 
+  filter( type == 'B' & type.inf == 'H3N2 and PH1')
+unmatchedfirstnp5 <- npfirstpositive %>% 
+  filter( type == 'A' &  type.inf == 'B')
+
 unmatchedtotal <- rbind(unmatchedfirstnp1, unmatchedfirstnp2, unmatchedfirstnp3, unmatchedfirstnp4, unmatchedfirstnp5)
+
 npfirstpositiveupdate <- setdiff(npfirstpositive, unmatchedtotal)
+
 #Check if any replicates in the data and why
 check2 <- npfirstpositiveupdate %>%
   group_by(sample.id) %>%
@@ -2086,9 +2142,9 @@ check2 <- npfirstpositiveupdate %>%
 check2 <- check2[order(check2$n), ]
 # samples that are duplicated at least once are 100_1,104_1,118_1,123_1,174_1,230_1,357_1,81_1,97_1,95_1
 #230 is dual infection has in both A and B, A has greater virus copies than B, 95 is dual infection in both A and B, B has greater virus copies than A 
+
 npfirstpositiveupdate <- npfirstpositiveupdate[order(npfirstpositiveupdate$subject.id), ]
 
 npfirstpositiveupdate$sample.type <- 'Nasopharyngeal swab'
 
 saveRDS(npfirstpositiveupdate, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
-
