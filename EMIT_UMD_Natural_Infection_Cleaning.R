@@ -2160,5 +2160,12 @@ npfirstpositiveupdate <- npfirstpositiveupdate[order(npfirstpositiveupdate$subje
 
 npfirstpositiveupdate$sample.type <- 'Nasopharyngeal swab'
 
+npfirstpositiveupdate <- npfirstpositiveupdate %>%
+  mutate(AorB = ifelse(type.inf == "B", "B",
+                       ifelse(type.inf == "B and unsubtypable A", "A and B",
+                              ifelse(type.inf == "H3N2 and B", "A and B", "A")))) %>%
+  filter(AorB == type | AorB == "A and B") %>%
+  select(-AorB)
+
 saveRDS(npfirstpositiveupdate, "Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
 
