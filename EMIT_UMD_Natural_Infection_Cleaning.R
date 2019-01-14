@@ -850,7 +850,7 @@ print(ftable(addmargins(with(merge3, table(merge2.i, cr.i, exclude = c())))))
 # Do date_visit match?
 d.err <- filter(merge3, date_visit.x != date_visit.y | is.na(date_visit.x != date_visit.y))
 
-#Number of samples where the date_visit.x (merge2) not equal date_visit.y (culture_results)
+# Number of samples where the date_visit.x (merge2) not equal date_visit.y (culture_results)
 print(nrow(d.err))
 
 # First 10 rows with non matching date_visit ordered by sample_id
