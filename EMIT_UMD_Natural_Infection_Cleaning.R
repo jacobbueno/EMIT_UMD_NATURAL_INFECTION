@@ -92,15 +92,15 @@ clinical_in_file <- 'UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
 clinical_umd <- read.csv(clinical_in_file)
 
 # Clean up the raw data just a little 
-clinical_umd$date_indx_on <- as.factor(as.Date(clinical_umd$date_indx_on, format = "%m/%d/%y"))
-clinical_umd$date_indx_visit <- as.factor(as.Date(clinical_umd$date_indx_visit, format = "%m/%d/%y"))
-clinical_umd$date_ref <- as.factor(as.Date(clinical_umd$date_ref, format = "%m/%d/%y"))
-clinical_umd$date_enroll <- as.factor(as.Date(clinical_umd$date_enroll, format = "%m/%d/%y"))
-clinical_umd$date_on_sx <- as.factor(as.Date(clinical_umd$date_on_sx, format = "%m/%d/%y"))
-clinical_umd$date_visit <- as.factor(as.Date(clinical_umd$date_visit, format = "%m/%d/%y"))
-clinical_umd$date_fever_on <- as.factor(as.Date(clinical_umd$date_fever_on, format = "%m/%d/%y"))
-clinical_umd$date_cough <- as.factor(as.Date(clinical_umd$date_cough, format = "%m/%d/%y"))
-clinical_umd$date_g2_1 <- as.factor(as.Date(clinical_umd$date_g2_1, format = "%m/%d/%y"))
+# clinical_umd$date_indx_on <- as.Date(clinical_umd$date_indx_on, format = "%m/%d/%y")
+# clinical_umd$date_indx_visit <- as.Date(clinical_umd$date_indx_visit, format = "%m/%d/%y")
+# clinical_umd$date_ref <- as.Date(clinical_umd$date_ref, format = "%m/%d/%y")
+# clinical_umd$date_enroll <- as.Date(clinical_umd$date_enroll, format = "%m/%d/%y")
+# clinical_umd$date_on_sx <- as.Date(clinical_umd$date_on_sx, format = "%m/%d/%y")
+# clinical_umd$date_visit <- as.Date(clinical_umd$date_visit, format = "%m/%d/%y")
+# clinical_umd$date_fever_on <- as.Date(clinical_umd$date_fever_on, format = "%m/%d/%y")
+# clinical_umd$date_cough <- as.Date(clinical_umd$date_cough, format = "%m/%d/%y")
+# clinical_umd$date_g2_1 <- as.Date(clinical_umd$date_g2_1, format = "%m/%d/%y")
 
 # Let's produce some summary information about this clinical_umd df
 
@@ -2179,4 +2179,289 @@ npfirstpositiveupdate <- npfirstpositiveupdate %>%
   select(-AorB)
 
 saveRDS(npfirstpositiveupdate, "Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
+
+#### Working with the "EMIT_UMD_Final_Data_Summary.R" script ####
+# Title: EMIT_UMD_Final_Data_Summary.R
+# Moving this file, originally produced by Jing and Don Milton, to git lab
+# Also organizing it and cleaning it up some. 
+
+## Original File information
+
+# Author: Jing Yan
+# Date: May 03, 2016
+# Revision Date: 2016
+# Title: final UMD data summary.R
+# Purpose: clean data and set files for tobit models
+# Input files:pcr data for gii and 2nd&3rd np.RDS
+#             EMIT_np_quantity.RDS
+#            EMIT_subtypes_enrolled_positive.RDS
+#             EMIT_samples.cc.RDS
+#          ???EMITClinicalUMD2013.csv
+# Output file: tables.txt
+
+#_____________
+# Setup all I/O
+# setwd('C:/Users/Jing/Box Sync/Box Sync/EMIT/EMIT_Data_Analysis')
+# setwd('/Users/dmilton/Box Sync/0_DKM/Lab/Biodefense/EMIT/EMIT_Data_Analysis')
+# setwd('/Volumes/Internal RAID Set 1/Box Sync/0_DKM/Lab/Biodefense/EMIT/EMIT_Data_Analysis')
+# sink(file="R_output/tables.txt",split=TRUE)
+# Out.dir <- "R_output/"
+#_____________
+
+pcr1 <- readRDS("Curated Data/Cleaned Data/pcr data for gii and 2nd&3rd np.RDS")
+
+pcr1 <- pcr1 %>% 
+  select(-Ct, -copies.in, -copy.num, -date, -cfactor, -virus.copies)
+
+nppcr1 <- readRDS("Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
+
+nppcr1 <- nppcr1 %>% 
+  select(-Ct, -copies.in, -copy.num, -date, -cfactor) %>% 
+  rename(final.copies = virus.copies)
+
+# Merge the preceding 2 dfs
+allpcr <- rbind(pcr1, nppcr1) %>% 
+  ungroup
+
+#114_1, 127_1, 335_1 (These three subjects were enrolled on the second visit, these three samples are from their first screen visit) 
+#subject 333 was removed, because the coarse sample was lost
+allpcr <- allpcr[!(allpcr$sample.id == "114_1"| allpcr$sample.id == "127_1" | allpcr$sample.id == "335_1" | allpcr$sample.id == "333_3" | allpcr$sample.id == "333_1"), ]
+
+## Read EMIT_samples.cc.RDS
+all <- readRDS("Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
+
+subgroup <- all %>% 
+  select(subject.id, sample.id, date.visit, date_on_sx)
+subgroup$date.visit <- as.Date(subgroup$date.visit)
+
+passagefocus <- all %>% 
+  select(subject.id, sample.id, date.visit, passpos, validp, focus.ct)
+
+coughgiivisits <- all %>% 
+  select(subject.id, sample.id, date.visit, cough_number, sample.type, g2.run)
+# Does this cough_number have all the data in it?
+# There seems to be quite a few NA's in there!
+# May need to find a cough_number variable that has all of the data in it.
+# Note: that in earlier dfs that were used to create this object, there were missing cough data with notes that the audio recordings should be used to identify cough number for quite a few GII sampling instances. 
+
+# Merge and clean
+pcrgiivisit <- inner_join(allpcr, coughgiivisits, by = c('subject.id', 'sample.id', 'sample.type'))
+pcrgiivisit$date.visit <- as.Date(pcrgiivisit$date.visit, "%m/%d/%Y")
+
+## Read daypostonset.csv 
+# (note: it is unclear how this file was created. It was found in Jing's R_output folder so presumably it was created with some script - unfortunately a search of files yielded none that might have produced this file)
+daypick1 <- read.csv("UMD_Raw_Data/REDCAP/daypostonset.csv")
+
+daypick <- daypick1 %>% 
+  distinct(subject.id, date.visit, dpo, .keep_all = TRUE)
+daypick <- daypick[order(daypick$subject.id, daypick$dpo), ]
+
+daypickfinal <- daypick %>% 
+  filter(!(dpo == 0 | dpo == 4 |dpo == 7))
+daypickfinal$date.visit <- as.Date(daypickfinal$date.visit, format = "%m/%d/%Y")
+daypickfinal$date_on_sx <- as.Date(daypickfinal$date_on_sx, format = "%m/%d/%Y")
+
+# Merge and clean
+withdpo <- inner_join(pcrgiivisit, daypickfinal, by = c('subject.id', 'date.visit'))
+withdpo <- withdpo %>% 
+  filter(!(is.na(cough_number)))
+# But does this cough_number include all the data from the recordings?
+
+# Remove experiment  9. 2015.06.19.014.74 2012-2013 Samples PCR Flu B
+# Then we removed subjects 322 and 337 and remove 182 second visit
+withdpo <- withdpo[!(withdpo$subject.id == 322 | withdpo$subject.id == 337), ]
+withdpo <- withdpo[!(withdpo$subject.id == 182 & withdpo$g2.run == 2), ]
+
+clinical_in_file <- 'UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
+clinical_umd <- read.csv(clinical_in_file)
+
+clinical_umd1 <- clinical_umd %>% 
+  select(field_subj_id, body_temp, date_visit, nose_run, nose_stuf, sneeze, throat_sr, earache, malaise, headache, mj_ache, sw_fever_chill, lymph_node, chest_tight, sob, cough, fluvac_cur, sex, asthma, anitviral_24h, smoke) %>%
+  rename(subject.id = field_subj_id, date.visit = date_visit)
+clinical_umd1$date.visit <- as.Date(clinical_umd1$date.visit, format = "%m/%d/%y")
+
+clinical_umd_1 <- clinical_umd1 %>%
+  select(subject.id, body_temp, date.visit) %>%
+  filter(!is.na(body_temp))
+
+clinical_umd_2 <- clinical_umd1 %>% 
+  select(subject.id, date.visit, nose_run, nose_stuf, sneeze, throat_sr, earache, malaise, headache, mj_ache, sw_fever_chill, lymph_node, chest_tight, sob, cough) %>% 
+  filter(!is.na(nose_run))
+
+clinical_umd_3 <- clinical_umd1 %>% 
+  select(subject.id, asthma) %>% 
+  filter(!is.na(asthma))
+# Save this object for later merge
+
+# Read in new df
+subtype <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled_positive.RDS")
+
+# Merge and clean
+comfirmcases <- inner_join(clinical_umd_2, subtype, by = 'subject.id')
+
+comfirmcases1 <- comfirmcases %>% 
+  mutate(upper_sym = nose_run + nose_stuf + sneeze + throat_sr + earache) %>% 
+  mutate(lower_sym = chest_tight + sob + cough) %>% 
+  mutate(systemic_sym = malaise + headache + mj_ache + lymph_node + sw_fever_chill)
+
+# Merge
+comfirmcases2 <- inner_join(comfirmcases1, subgroup, by = c('subject.id', 'date.visit'))
+
+pcr_body_temp_symptoms <- inner_join(allpcr, comfirmcases2, by = c('subject.id', 'sample.id', 'type.inf')) %>%
+  select(-date_on_sx)
+# pcr_body_temp_symptoms$date_on_sx <- as.Date(pcr_body_temp_symptoms$date_on_sx)
+
+finaldata <- inner_join(withdpo, pcr_body_temp_symptoms)
+
+finaldata2 <- left_join(finaldata, clinical_umd_1, by = c('date.visit', 'subject.id'))
+
+finaldata3 <- inner_join(finaldata2, clinical_umd_3, by = 'subject.id')
+
+enrolled <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+enrolledcase <- enrolled %>% 
+  select(subject.id)
+# So far this 'enrolled' object doesn't is not incoporated until later.
+
+####**************G2 LOG DATA****************####
+g2_in_file <- 'UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
+g2_log <- read.csv(g2_in_file)
+
+##****************** Date Entry Error Correction
+print(select(filter(g2_log, subject_id == 284), subject_id, redcap_event_name, start_dt))
+
+# Subject_id 284 g2 collection_2_arm_1 was entered as 2013-03-17 but baseline was on 2013-02-16 and collection_3 was 2013-02-18."
+# Therefore recode collection_2 date to February from March (i.e. to 2013-02-17).
+
+g2_log$start_dt[which(g2_log$subject_id == 284 & g2_log$start_dt == '2013-03-17', arr.ind = TRUE)] <- '2013-02-17'
+g2_log <- g2_log %>% 
+  filter(!(subject_id == 81 & redcap_event_name == 'collection_2_arm_1'))
+
+g2_log1 <- g2_log %>% 
+  select(subject_id, start_dt, g2_unit, chiller_t1, chiller_t2, chiller_t3, elbow_rh1, elbow_rh2, elbow_rh3, elbow_t1, elbow_t2, elbow_t3, cond_tin1, cond_tin2, cond_tin3, cond_tout1, cond_tout2, cond_tout3)
+
+g2_log1$chiller.t <- (g2_log1$chiller_t1 + g2_log1$chiller_t2 + g2_log1$chiller_t3) / 3
+g2_log1$elbow_rh <- (g2_log1$elbow_rh1 + g2_log1$elbow_rh2 + g2_log1$elbow_rh3) / 3
+g2_log1$elbow_t <- (g2_log1$elbow_t1 + g2_log1$elbow_t2 + g2_log1$elbow_t3) / 3
+g2_log1$cond_tin <- (g2_log1$cond_tin1 + g2_log1$cond_tin2 + g2_log1$cond_tin3) / 3
+g2_log1$cond_tout <- (g2_log1$cond_tout1 + g2_log1$cond_tout2 + g2_log1$cond_tout3) / 3
+
+g2_log1 <- g2_log1 %>% 
+  select(subject_id, start_dt, g2_unit,chiller.t, elbow_rh,elbow_t, cond_tin,cond_tout) %>%
+  rename(subject.id = subject_id, date.visit = start_dt)
+g2_log1$date.visit <- as.Date(g2_log1$date.visit)
+
+# Merge and clean
+finaldata4 <- inner_join(finaldata3, g2_log1, by = c('subject.id', 'date.visit'))
+
+finaldata4$typeAB <- ifelse(finaldata3$type.inf =='H3N2'|finaldata3$type.inf == 'Unsubtypable A' |finaldata3$type.inf == 'Pandemic H1', "A", "B")
+finaldata4$typeAB[finaldata3$subject.id == 55] <- 'A'
+finaldata4$typeAB[finaldata3$subject.id == 230] <- 'A'
+
+VSAS <- read.csv("UMD_Raw_Data/REDCAP/vacine_smoker_antiviral_sex.csv")
+
+finaldata142 <- inner_join(finaldata4, VSAS, by = 'subject.id')
+
+saveRDS(finaldata142, "Curated Data/Cleaned Data/finaldata142.RDS")                                   
+totalsamples <- finaldata142 %>% 
+  distinct(subject.id, sample.id, sample.type, .keep_all = TRUE)
+
+totalsubjects <- finaldata142 %>% 
+  distinct(subject.id, .keep_all = TRUE)
+
+sex <- finaldata142 %>% 
+  distinct(subject.id, sex, .keep_all = TRUE) %>% 
+  filter(sex == 1)
+
+flushot <- finaldata142 %>% 
+  distinct(subject.id, fluvac_cur, .keep_all = TRUE) %>% 
+  filter(fluvac_cur == 1)
+
+asthma <- finaldata142 %>% 
+  distinct(subject.id, asthma, .keep_all = TRUE) %>% 
+  filter(asthma == 1)
+
+smoker <- finaldata142 %>% 
+  distinct(subject.id, Smoker, .keep_all = TRUE) %>% 
+  filter(Smoker == 1)
+
+antiviral <- finaldata142 %>% 
+  distinct(subject.id, anitviral_24h, .keep_all = TRUE)
+antiviral1 <- antiviral %>% 
+  filter(anitviral_24h == 1)
+
+npsubgroup <- finaldata142 %>% 
+  filter(sample.type == 'Nasopharyngeal swab')
+npsubgroup <- npsubgroup %>% 
+  select(Experiment, subject.id, sample.id, type.inf, sample.type, final.copies, date.visit, cough_number, g2.run, dpo, upper_sym, lower_sym, systemic_sym, body_temp, asthma, g2_unit, chiller.t, typeAB, elbow_rh, elbow_t, cond_tin, cond_tout, sex, fluvac_cur, anitviral_24h, Smoker)
+
+npsubgroup <- npsubgroup[order(npsubgroup$subject.id, npsubgroup$date.visit), ]
+
+count1 <- npsubgroup %>% 
+  distinct(subject.id, .keep_all = TRUE)
+
+count2 <- npsubgroup %>% 
+  group_by(sample.id) %>% 
+  summarise(n = n())
+
+count3 <- count2 %>% 
+  filter(n > 2)
+
+finesubgroup <- finaldata142 %>% 
+  filter(sample.type == 'GII condensate NO mask')
+
+symptom <- finesubgroup %>% 
+  select(subject.id, sample.id, dpo, systemic_sym, upper_sym, lower_sym, nose_run, nose_stuf, sneeze, throat_sr, earache, chest_tight, sob, cough, malaise, headache, mj_ache, sw_fever_chill, lymph_node) %>% 
+  distinct(subject.id, sample.id, dpo, systemic_sym, upper_sym, lower_sym, nose_run, nose_stuf, sneeze, throat_sr, earache, chest_tight, sob, cough, malaise, headache, mj_ache, sw_fever_chill, lymph_node)
+
+# write.csv(symptom, "C:/Users/Jing/Desktop/symptomscoreupdate.csv") 
+
+finesubgroup <- finesubgroup %>% 
+  select(Experiment, subject.id, sample.id, type.inf, sample.type, final.copies,date.visit, cough_number, g2.run, dpo, upper_sym, lower_sym, systemic_sym, body_temp, asthma, g2_unit, chiller.t, typeAB, elbow_rh, elbow_t, cond_tin, cond_tout, sex, fluvac_cur, anitviral_24h, Smoker)
+
+count4 <- finesubgroup %>% 
+  distinct(subject.id)
+count5 <- finesubgroup %>% 
+  group_by(sample.id) %>% 
+  summarise(n = n())
+count6 <- count5 %>% 
+  filter(n > 2)
+
+coarsesubgroup <- finaldata142 %>% 
+  filter(sample.type == 'Impactor 5 um NO mask') %>% 
+  select(Experiment, subject.id, sample.id, type.inf, sample.type, final.copies, date.visit, cough_number, g2.run, dpo, upper_sym, lower_sym, systemic_sym, body_temp, asthma, g2_unit, chiller.t, typeAB, elbow_rh,elbow_t, cond_tin, cond_tout, sex, fluvac_cur, anitviral_24h, Smoker)
+
+count7< - coarsesubgroup %>% 
+  distinct(subject.id)
+count8 <- coarsesubgroup %>% 
+  group_by(sample.id) %>% 
+  summarise(n = n())
+count9 <- count8 %>% 
+  filter(n > 2)
+#Repeated format
+
+finesubgroup <- finesubgroup %>% 
+  mutate(sampleid = gsub('^[0-9]*_', '', sample.id))
+finesubgroup$NPswab <- 0
+finesubgroup$Coarse <- 0
+finesubgroup$Fine <- 1
+
+coarsesubgroup <- coarsesubgroup %>% 
+  mutate(sampleid = gsub('^[0-9]*_', '', sample.id))
+coarsesubgroup$NPswab <- 0
+coarsesubgroup$Coarse <- 1
+coarsesubgroup$Fine <- 0
+
+npsubgroup<-npsubgroup %>% 
+  mutate(sampleid = gsub('^[0-9]*_', '', sample.id))
+npsubgroup$NPswab <- 1
+npsubgroup$Coarse <- 0
+npsubgroup$Fine <- 0
+
+finaldataset <- rbind(finesubgroup, npsubgroup, coarsesubgroup) %>% 
+  ungroup
+
+finaldataset <- finaldataset[order(finaldataset$subject.id,finaldataset$dpo), ]
+finaldataset$final.copies[is.na(finaldataset$final.copies)] <- '.'
+
+write.csv(finaldataset, "Curated Data/Cleaned Data/finaldatasetrepeatupdate.csv")
 
