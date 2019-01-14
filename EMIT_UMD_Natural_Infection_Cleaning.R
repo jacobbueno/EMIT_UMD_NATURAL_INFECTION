@@ -96,19 +96,19 @@ clinical_umd <- read.csv(clinical_in_file)
 print(nrow(clinical_umd))
 print(ncol(clinical_umd))
 
-print(sum(clinical_umd$redcap_event_name=='visit_1_part_a_arm_1'))
-print(sum(clinical_umd$redcap_event_name=='screen_visit_2_arm_1'))
-print(sum(clinical_umd$redcap_event_name=='screen_visit_3_arm_1'))
-print(sum(clinical_umd$redcap_event_name=='visit_1_part_a_arm_1') +
-        sum(clinical_umd$redcap_event_name=='screen_visit_2_arm_1') +
-        sum(clinical_umd$redcap_event_name=='screen_visit_3_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'visit_1_part_a_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'screen_visit_2_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'screen_visit_3_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'visit_1_part_a_arm_1') +
+        sum(clinical_umd$redcap_event_name == 'screen_visit_2_arm_1') +
+        sum(clinical_umd$redcap_event_name == 'screen_visit_3_arm_1'))
 
-print(sum(clinical_umd$redcap_event_name=='g2_run_1_arm_1'))
-print(sum(clinical_umd$redcap_event_name=='g2_run_2_arm_1'))
-print(sum(clinical_umd$redcap_event_name=='g2_run_3_arm_1'))
-print(sum(clinical_umd$redcap_event_name=='g2_run_1_arm_1') +
-        sum(clinical_umd$redcap_event_name=='g2_run_2_arm_1') +
-        sum(clinical_umd$redcap_event_name=='g2_run_3_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'g2_run_1_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'g2_run_2_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'g2_run_3_arm_1'))
+print(sum(clinical_umd$redcap_event_name == 'g2_run_1_arm_1') +
+        sum(clinical_umd$redcap_event_name == 'g2_run_2_arm_1') +
+        sum(clinical_umd$redcap_event_name == 'g2_run_3_arm_1'))
 
 print(addmargins(with(clinical_umd, table(redcap_event_name, exclude = c()))))
 
@@ -120,7 +120,7 @@ print(select(filter(clinical_umd, field_subj_id == 47 | field_subj_id == 187),
 
 # Clinical data split into screening visits and g2 runs and remerged to get one row per encounter date
 clinical_min <- clinical_umd %>% 
-  select(field_subj_id, redcap_event_name, date_visit, date_g2_1, rapid_flu___3, rapid_flu_loc, body_temp)
+  select(field_subj_id, redcap_event_name, date_visit, date_g2_1, rapid_flu___3, rapid_flu_loc, body_temp, date_on_sx)
 
 clinical_visit <- clinical_min %>% 
   filter(grepl('visit', redcap_event_name))
@@ -147,14 +147,15 @@ clinical_g2_23 <- clinical_g2 %>%
 
 # Merge the G2 sample collection visits (1, 2, and 3) together into the clinical_g2 df
 clinical_g2 <- merge(clinical_g2_1, clinical_g2_23, 
-                     c('field_subj_id','date_visit','redcap_event_name','g2_run'), all = TRUE)
+                     c('field_subj_id', 'date_visit', 'redcap_event_name', 'g2_run'), all = TRUE)
 
 sum_clinical <- merge(select(clinical_visit, -contains("date_g2_1")), clinical_g2, 
                       c('field_subj_id', 'date_visit'), all = TRUE)
 
 sum_clinical$enrolled <- ifelse(!is.na(sum_clinical$g2_run), TRUE, FALSE)
 
-sum_clinical <- rename(sum_clinical, visit_name = redcap_event_name.x, g2_name = redcap_event_name.y)
+sum_clinical <- sum_clinical %>% 
+  rename(visit_name = redcap_event_name.x, g2_name = redcap_event_name.y)
 
 sum_clinical$g2_run <- with(sum_clinical, ifelse(is.na(g2_run), 0, g2_run)) 
 
@@ -176,6 +177,8 @@ sum(sum_clinical$g2_run > 0)
 
 # Fix the format of the date variable in sum_clinical
 sum_clinical$date_visit <- as.Date(as.character(sum_clinical$date_visit), format = "%m/%d/%y")
+sum_clinical$date_on_sx <- as.Date(as.character(sum_clinical$date_on_sx), format = "%m/%d/%y")
+sum_clinical$date_on_sx <- as.factor(sum_clinical$date_on_sx)
 print(head(tbl_df(sum_clinical)))
 
 #### READ in and work with G2 LOG DATA ####
@@ -212,7 +215,8 @@ print(tbl_df(filter(sum_clinical, field_subj_id == id)))
 # Data Entry Error Correction
 # Remove empty record identified as having no start_dt, subject_id:
 g2_log$subject_id[which(g2_log$start_dt == "", arr.ind = TRUE)]
-g2_log <- filter(g2_log, !(g2_log$start_dt) == "")
+g2_log <- g2_log %>%
+  filter(!(g2_log$start_dt) == "")
 
 # Number of rows in g2_log data
 print(nrow(g2_log))
@@ -232,11 +236,12 @@ g2_log <- g2_log %>%
   rename(date_visit = start_dt)
 
 g2_log_min <- g2_log %>% 
-  select(subject_id, redcap_event_name, date_visit, subj_min)
-# Not sure if we need to keep the cough_cough and subject_min data in here.
+  select(subject_id, redcap_event_name, date_visit, subj_min, cough_number)
+# Not sure if we need to keep the cough_count and subject_min data in here.
 # However, note that at this point much of the cough data is missing 
 # These mising cough values can be filled in based on the audio recordings.
 # Adding in the audio recording cough data is done elsewhere, but need to find where?
+# Here we kept in the cough_number variable but it appears to be missing some of the values that have audio and haven't yet been added into the df.
 
 g2_log_min$g2_coll_num <- ifelse(g2_log_min$redcap_event_name == 'baseline_and_colle_arm_1', 1, 
                               ifelse(g2_log_min$redcap_event_name == 'collection_2_arm_1', 2, 3)) 
@@ -246,7 +251,7 @@ print(ftable(addmargins(with(g2_log_min, table(redcap_event_name, g2_coll_num, e
 # This is an important print out of the number of G2 collection events by visit number.
 
 g2_log_min <- g2_log_min %>% 
-  select(subject_id, date_visit, g2_coll_num, subj_min) %>%
+  select(subject_id, date_visit, g2_coll_num, subj_min, cough_number) %>%
   rename(field_subj_id = subject_id)
 
 g2_log_min$g2lm.i <- TRUE #indicator for preseence of record in g2_log_min
@@ -265,7 +270,7 @@ print(head(tbl_df(g2_log_min)))
 merge1 <- merge(sum_clinical, g2_log_min, by = c('field_subj_id', 'date_visit'), all=TRUE)
 
 # Merge 1 check the dimensions agains the source dfs
-print(ftable(addmargins(with(merge1, table(clinical.i, g2lm.i, exclude=c())))))
+print(ftable(addmargins(with(merge1, table(clinical.i, g2lm.i, exclude = c())))))
 
 # Select the variables of importance and their order. 
 merge1 <- merge1 %>% 
@@ -279,7 +284,9 @@ merge1 <- merge1 %>%
          g2lm.i, 
          rapid_flu___3, 
          rapid_flu_loc, 
-         body_temp)
+         body_temp, 
+         cough_number,
+         date_on_sx)
 
 # Do the g2_coll_num match with the g2_run? They should match.
 identical(merge1$g2_coll_num, merge1$g2_run)
@@ -309,8 +316,7 @@ merge1$field_subj_id[which(merge1$indicator == 0, arr.ind = TRUE)]
 # Subject 69 had a second g2 visit in clinical data, but did not provide sample - 
 # See REDCap comments for details - removed from final analysis data sets
 merge1 <- merge1 %>% 
-  filter(indicator == 1)
-merge1 <- merge1 %>% 
+  filter(indicator == 1) %>% 
   select(-indicator)
 
 # Recheck after delection: Merge 1 record sources
@@ -332,9 +338,9 @@ print(sum(merge1$visit_num == 3, na.rm = TRUE))
 print(length(unique(merge1$field_subj_id)))
 
 # Number of screening visits
-sum(merge1$visit_num == 1,na.rm = TRUE) + 
-  sum(merge1$visit_num == 2,na.rm = TRUE) + 
-  sum(merge1$visit_num == 3,na.rm = TRUE)
+sum(merge1$visit_num == 1, na.rm = TRUE) + 
+  sum(merge1$visit_num == 2, na.rm = TRUE) + 
+  sum(merge1$visit_num == 3, na.rm = TRUE)
 
 # Number of subjects with a 1st g2 run ...
 # g2_num:
@@ -463,11 +469,11 @@ print(tbl_df(filter(field.db1, field_subj_id == 12)))
 
 # There was no subject 11, 28, 53, 73, or 76; Samples were generated in error.
 # Delete samples for non-existant subjects
-field.db1 <- filter(field.db1, field_subj_id != 11)
-field.db1 <- filter(field.db1, field_subj_id != 28)
-field.db1 <- filter(field.db1, field_subj_id != 53)
-field.db1 <- filter(field.db1, field_subj_id != 73)
-field.db1 <- filter(field.db1, field_subj_id != 76)
+field.db1 <- filter(field.db1, field_subj_id != 11)%>%
+  filter(field_subj_id != 28) %>%
+  filter(field_subj_id != 53) %>%
+  filter(field_subj_id != 73) %>% 
+  filter(field_subj_id != 76)
 
 # There was no second visit for subj 30; Samples generated in error.
 # Delete samples for subject 30 on 2012-12-18. 
@@ -538,7 +544,8 @@ print(inner_join(field.db1, x, by = "field_subj_id"))
 # There are also no samples in the REDCap sample database for subject 135 except 135_1.
 
 # As a result, we delete field_subj_id == 135 & date_visit == 2013-02-05 
-merge2 <- filter(merge2, !(field_subj_id == 135 & date_visit == "2013-02-05"))
+merge2 <- merge2 %>%
+  filter(!(field_subj_id == 135 & date_visit == "2013-02-05"))
 
 # Checking merge2 rows where field.db1 not matched by rows from merge1
 print(filter(merge2, is.na(merge1.i)))
@@ -594,11 +601,13 @@ sample_in <- sample_in %>%
   filter(!(sample_id %in% c("69_6", "69_7", "20-1", "97-9")))
 sample_in$dt_stained <- with(sample_in, ifelse(sample_id == "20_1" & dt_count == "12/15/2012", "12/15/2012", dt_stained))
 
-collection <- select(sample_in %>% 
-                       filter(redcap_event_name == "collection_arm_1"), 
-                     sample_id, field_subj_id, sample_type, date_visit )
+collection <- sample_in %>%
+  filter(redcap_event_name == "collection_arm_1") %>%
+  select(sample_id, field_subj_id, sample_type, date_visit)
+
 assay1 <- sample_in %>% 
   filter(grepl('^assay1', redcap_event_name))
+
 assay2 <- sample_in %>% 
   filter(grepl('^assay2', redcap_event_name))
 
@@ -634,7 +643,8 @@ print(tbl_df(filter(passage, sample_id != passage_id)))
 
 passage$passpos <- (passage$passage_1 == 2 | passage$passage_2 == 2) # Passage is + if either passage is +
 passage$validp <- !is.na(passage$passpos)
-passage <- select(passage, sample_id, passpos, validp)
+passage <- passage %>%
+  select(sample_id, passpos, validp)
 
 # Initial look at passage assays
 # Number of passage assays
@@ -673,9 +683,9 @@ print(nrow(focus1))
 print(nrow(focus2))
 
 # Number of focus1 rows with no dt_count
-print(sum(focus1$dt_count==""))
+print(sum(focus1$dt_count == ""))
 # Number of focus2 rows with no dt_count
-print(sum(focus2$dt_count==""))
+print(sum(focus2$dt_count == ""))
 
 #### Computation of focus assay results ####
 
@@ -686,58 +696,47 @@ focus2$df <- 10^(ifelse(is.na(focus2$dilution_factor), 0, focus2$dilution_factor
 area.24 <- pi*(15.4/2)^2
 area.g <- 0.64
 
-focus1$ct_24g <- rowSums(focus1[ , c(11:20)], na.rm = T) / (10*area.g)*area.24*focus1$df/150*1000
-focus1$ct_24w <- focus1$well*focus1$df/150*1000
-focus1$ct_96  <- rowSums(focus1[ , c(11:13)], na.rm = T)*focus1$df/150*1000
+focus1$ct_24g <- rowSums(focus1[ , c(11:20)], na.rm = T) / (10*area.g)*area.24*focus1$df / 150*1000
+focus1$ct_24w <- focus1$well*focus1$df / 150*1000
+focus1$ct_96  <- rowSums(focus1[ , c(11:13)], na.rm = T)*focus1$df / 150*1000
 
 focus1_24g <- focus1 %>%
   filter((focus1$plate_type == 1 | is.na(focus1$plate_type)) & focus1$count_meth == 1) %>% 
-  select(-ct_96, -ct_24w)
-
-focus1_24g <- focus1_24g %>%
+  select(-ct_96, -ct_24w) %>%
   rename(ct = ct_24g)
 
 focus1_24w <- focus1 %>% 
   filter((focus1$plate_type == 1 | is.na(focus1$plate_type)) & focus1$count_meth == 2) %>% 
-  select(-ct_96, -ct_24g)
-
-focus1_24w <- focus1_24w %>%
+  select(-ct_96, -ct_24g) %>%
   rename(ct = ct_24w)
 
 focus1_96  <- focus1 %>%
   filter(focus1$plate_type == 2) %>% 
-  select(-ct_24w, -ct_24g)
-
-focus1_96  <- focus1_96 %>%
+  select(-ct_24w, -ct_24g) %>%
   rename(ct = ct_96)
 
 focus1_c <- arrange(rbind(focus1_96, focus1_24w, focus1_24g))
 
-focus2$ct_24g <- rowSums(focus2[ , c(11:20)], na.rm = T) / (10*area.g)*area.24*focus2$df/150*1000
+focus2$ct_24g <- rowSums(focus2[ , c(11:20)], na.rm = T) / (10*area.g)*area.24*focus2$df / 150*1000
 
-focus2$ct_24w <- focus2$well*focus2$df/150*1000
+focus2$ct_24w <- focus2$well*focus2$df / 150*1000
 
-focus2$ct_96  <- rowSums(focus2[ , c(11:13)], na.rm = T)*focus2$df/150*1000
+focus2$ct_96  <- rowSums(focus2[ , c(11:13)], na.rm = T)*focus2$df / 150*1000
 
 focus2_24g <- focus2 %>%
   filter((focus2$plate_type == 1 | is.na(focus2$plate_type)) & focus2$count_meth == 1) %>% 
-  select(-ct_96, -ct_24w)
-
-focus2_24g <- focus2_24g %>%
+  select(-ct_96, -ct_24w) %>%
   rename(ct = ct_24g)
 
 focus2_24w <- focus2 %>%
   filter((focus2$plate_type == 1 | is.na(focus2$plate_type)) & focus2$count_meth == 2) %>% 
-  select(-ct_96, -ct_24g)
-
-focus2_24w <- focus2_24w %>%
+  select(-ct_96, -ct_24g) %>%
   rename(ct = ct_24w)
 
 focus2_96  <- focus2 %>% 
   filter(focus2$plate_type == 2) %>% 
-  select(-ct_24w, -ct_24g)
-
-focus2_96  <- rename(focus2_96, ct = ct_96)
+  select(-ct_24w, -ct_24g) %>%
+  rename(ct = ct_96)
 
 focus2_c <- arrange(rbind(focus2_96, focus2_24w, focus2_24g))
 
@@ -750,7 +749,8 @@ focus$ct <- rowMeans(cbind(focus$ct.x,focus$ct.y), na.rm = T)
 
 missing_focus <- tbl_df(filter(focus, is.nan(ct)))
 focus_allv <- focus
-focus <- select(focus, sample_id, ct)
+focus <- focus %>%
+  select(sample_id, ct)
 
 ## FOCUS ASSAY RESULTS ##
 
@@ -1021,7 +1021,9 @@ samples.cc <- merge3 %>%
          enrolled, 
          rapid_flu___3, 
          rapid_flu_loc, 
-         body_temp)
+         body_temp, 
+         cough_number,
+         date_on_sx)
 
 #### Write out EMIT_samples.cc.RDS file from merge of Clin DB + G2 Log + Field Sample DB ####
 
@@ -1121,7 +1123,7 @@ fluBnp1 <- fluBnp %>%
 fluBnplow <- fluBnp1 %>% 
   filter(grepl('_Low', Well.Name))
 fluBnplow$dif <- fluBnplow$Ct..dRn.-ctLB1np
-fluBnplow <-fluBnplow %>%
+fluBnplow <- fluBnplow %>%
   filter(!is.na(Ct..dRn.))
 
 fluBnphigh <- fluBnp1 %>% 
@@ -1315,8 +1317,8 @@ pcr_A1 <- pcr_A1 %>%
   select(-Well, -Well.Type, -Threshold..dRn., -Replicate) %>%
   mutate(Well.Name = gsub('_A','', Well.Name)) %>%
   mutate(Well.Name = gsub('A_','', Well.Name)) %>%
-  mutate(subject.id = gsub('_[0-9]*', '', Well.Name))
-pcr_A1 <- rename(pcr_A1, copies.in = Quantity..copies.)
+  mutate(subject.id = gsub('_[0-9]*', '', Well.Name)) %>%
+  rename(copies.in = Quantity..copies.)
 pcr_A1[pcr_A1 == "No Ct"]<-''
 pcr_A1$copies.in <- as.numeric(pcr_A1$copies.in)
 
@@ -1340,8 +1342,8 @@ pcr_A2 <- pcr_A2 %>%
   filter(!grepl('High', Well.Name)) %>%
   filter(!grepl('Standard', Well.Type)) %>%
   mutate(Well.Name = gsub('_A', '', Well.Name)) %>%
-  mutate(Well.Name = gsub('A_', '', Well.Name))
-pcr_A2 <- rename(pcr_A2, copies.in = Quantity..copies.) %>%
+  mutate(Well.Name = gsub('A_', '', Well.Name))%>%
+  rename(copies.in = Quantity..copies.) %>%
   mutate(subject.id = gsub('_[0-9]*', '', Well.Name)) %>% 
   select(-Well, -Well.Type, -Threshold..dRn., -Replicate, -X, -FAM..Y....3.143.LOG.X....37.14..Eff....108.0.)
 pcr_A2[pcr_A2 == "No Ct"] <- ''
@@ -1367,8 +1369,8 @@ pcr_A3 <- pcr_A3 %>%
   filter(!grepl('B', Well.Name)) %>%
   filter(!grepl('High', Well.Name)) %>%
   mutate(Well.Name = gsub('_A', '', Well.Name)) %>%
-  mutate(Well.Name = gsub('A_', '', Well.Name))
-pcr_A3 <- rename(pcr_A3, copies.in = Quantity..copies.) %>%
+  mutate(Well.Name = gsub('A_', '', Well.Name)) %>%
+  rename(copies.in = Quantity..copies.) %>%
   select(-Well, -Well.Type, -Threshold..dRn.) %>%
   mutate(subject.id = gsub('_[0-9]*', '', Well.Name))
 pcr_A3[pcr_A3 == "No Ct"]<-''
@@ -1385,7 +1387,8 @@ pcr_A3 <- pcr_A3[order(pcr_A3$Well.Name), ]
 
 pcr_A <- rbind(pcr_A1, pcr_A2, pcr_A3) %>% 
   ungroup
-pcr_A <- pcr_A %>% mutate(type = 'A') %>% 
+pcr_A <- pcr_A %>% 
+  mutate(type = 'A') %>% 
   mutate(copy.num = copies.in*80)
 
 # Number of rows of total (gii and 2rd or 3rd NP samples) influenza A PCR data
@@ -1396,7 +1399,9 @@ ncol(pcr_A)
 pcr_A <- pcr_A[order(pcr_A$subject.id), ]
 pcr_A <- pcr_A %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
-pcr_Afinal <- left_join(pcr_A, fluAcali, by = 'date')
+
+pcr_Afinal <- pcr_A %>%
+  left_join(fluAcali, by = 'date')
 pcr_Afinal$virus.copies <- pcr_Afinal$copy.num*pcr_Afinal$cfactor
 
 #### READ in "fluB_calibration.RDS" ####
@@ -1415,17 +1420,17 @@ pcr_B1 <- rbind(pcr_B1a, pcr_B1b) %>%
 names(pcr_B1)
 
 pcr_B1 <- pcr_B1 %>% 
-  filter(Ct..dRn. != 'Reference')
-pcr_B1 <- pcr_B1 %>% 
+  filter(Ct..dRn. != 'Reference') %>% 
   filter(!grepl('_Low', Well.Name)) %>% 
   filter(!grepl('NTC', Well.Name)) %>% 
   filter(grepl('_', Well.Name)) %>% 
-  filter(!grepl('Standard', Well.Type)) %>% filter(!grepl('High', Well.Name)) %>% 
+  filter(!grepl('Standard', Well.Type)) %>% 
+  filter(!grepl('High', Well.Name)) %>% 
   mutate(Well.Name = gsub('_B', '', Well.Name)) %>% 
   mutate(Well.Name = gsub('B_', '', Well.Name)) %>% 
   select(-Well.Type,-Replicate,-Threshold..dRn.,-Well) %>% 
-  mutate(subject.id = gsub('_[0-9]*','',Well.Name))
-pcr_B1 <- rename(pcr_B1, copies.in = Quantity..copies.)
+  mutate(subject.id = gsub('_[0-9]*','',Well.Name)) %>%
+  rename(copies.in = Quantity..copies.)
 pcr_B1[pcr_B1 == "No Ct"] <- ''
 pcr_B1$copies.in <- as.numeric(pcr_B1$copies.in)
 
@@ -1447,8 +1452,9 @@ pcr_B2 <- pcr_B2 %>%
   filter(!grepl('High', Well.Name)) %>% 
   mutate(Well.Name = gsub('_B', '', Well.Name)) %>%
   mutate(Well.Name = gsub('B_', '', Well.Name)) %>%
-  mutate(subject.id = gsub('_[0-9]*', '', Well.Name)) %>% select(-Well.Type, -Threshold..dRn., -Well)
-pcr_B2 <- rename(pcr_B2, copies.in = Quantity..copies.)
+  mutate(subject.id = gsub('_[0-9]*', '', Well.Name)) %>% 
+  select(-Well.Type, -Threshold..dRn., -Well) %>%
+  rename(copies.in = Quantity..copies.)
 pcr_B2[pcr_B2 == "No Ct"] <- ''
 pcr_B2$copies.in <- as.numeric(pcr_B2$copies.in)
 
@@ -1475,7 +1481,8 @@ pcr_B <- pcr_B[order(pcr_B$subject.id), ]
 pcr_B <- pcr_B %>% 
   mutate(date = gsub('^[0-9]*.', '', Experiment))
 
-pcr_Bfinal <- left_join(pcr_B, fluBcali, by = 'date')
+pcr_Bfinal <- pcr_B %>%
+  left_join(fluBcali, by = 'date')
 pcr_Bfinal$virus.copies <- pcr_Bfinal$copy.num*pcr_Bfinal$cfactor
 
 #### Merge the fluA and fluB pcr data ####
@@ -1650,17 +1657,17 @@ m7.s$type.badass <- with(m7.s, ifelse(!RP & # RP negative and everything else ne
 
 ## Assign a number code to each possible combination of results (among those observed)
 
-m7.s$num = NA
-m7.s$num[m7.s$type.sub.H1 == T] = 1
-m7.s$num[m7.s$type.sub.H3 == T] = 2
-m7.s$num[m7.s$type.sub.PH1 == T] = 3
-m7.s$num[m7.s$type.B == T] = 4
-m7.s$num[m7.s$type.neg == T] = 5
-m7.s$num[m7.s$type.H3N2.and.B == T] = 6
-m7.s$num[m7.s$type.H3N2.and.PH1 == T] = 7
-m7.s$num[m7.s$type.B.and.PH1 == T] = 8
-m7.s$num[m7.s$type.sub.indet == T] = 9
-m7.s$num[m7.s$type.badass == T] = 10
+m7.s$num <- NA
+m7.s$num[m7.s$type.sub.H1 == T] <- 1
+m7.s$num[m7.s$type.sub.H3 == T] <- 2
+m7.s$num[m7.s$type.sub.PH1 == T] <- 3
+m7.s$num[m7.s$type.B == T] <- 4
+m7.s$num[m7.s$type.neg == T] <- 5
+m7.s$num[m7.s$type.H3N2.and.B == T] <- 6
+m7.s$num[m7.s$type.H3N2.and.PH1 == T] <- 7
+m7.s$num[m7.s$type.B.and.PH1 == T] <- 8
+m7.s$num[m7.s$type.sub.indet == T] <- 9
+m7.s$num[m7.s$type.badass == T] <- 10
 
 # Number of rows without a number assigned
 print(nrow(filter(m7.s, is.na(num))))
@@ -1853,9 +1860,11 @@ includetypepostive <- inner_join(total.pcr, flu.typepositive, by = "subject.id")
 dual <- includetypepostive %>% 
   group_by(subject.id) %>% 
   filter( type == 'A' & type == 'B')
+
 unmatched1 <- includetypepostive %>% 
   filter(type == 'B' & type.inf != 'B')
 print(unmatched1)
+
 unmatched2 <- includetypepostive %>%
   filter( type == 'A' &  type.inf == 'B')
 
@@ -1911,13 +1920,13 @@ allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>%
 
 allPCR.A <- allPCRtotal %>% 
   filter(typeA == 'A') %>%
-  select(-CtB, -virus.copiesB, -typeB, -final.copiesB)
-allPCR.A <- rename(allPCR.A, Ct = CtA,virus.copies = virus.copiesA, type = typeA,final.copies = final.copiesA)
+  select(-CtB, -virus.copiesB, -typeB, -final.copiesB) %>%
+  rename(Ct = CtA,virus.copies = virus.copiesA, type = typeA,final.copies = final.copiesA)
 
 allPCR.B <- allPCRtotal %>% 
   filter(typeB == 'B') %>%
-  select(-CtA, -virus.copiesA, -typeA, -final.copiesA)
-allPCR.B <- rename(allPCR.B, Ct = CtB, virus.copies = virus.copiesB, type = typeB, final.copies = final.copiesB)
+  select(-CtA, -virus.copiesA, -typeA, -final.copiesA) %>%
+  rename(Ct = CtB, virus.copies = virus.copiesB, type = typeB, final.copies = final.copiesB)
 
 # 2. merge the seperated FILE FOR A and B back together, successfully make,- one row for one subject.id
 allPCRfinal <- rbind(allPCR.A, allPCR.B) %>% 
@@ -2122,12 +2131,16 @@ npfirstpositive <- inner_join(npfirst, flu.types, by = c("subject.id"))
 
 unmatchedfirstnp1 <- npfirstpositive %>% 
   filter( type == 'B' & type.inf == 'H3N2')
+
 unmatchedfirstnp2 <- npfirstpositive %>% 
   filter( type == 'B' & type.inf == 'Pandemic H1')
+
 unmatchedfirstnp3 <- npfirstpositive %>% 
   filter( type == 'B' & type.inf == 'Unsubtypable A')
+
 unmatchedfirstnp4 <- npfirstpositive %>% 
   filter( type == 'B' & type.inf == 'H3N2 and PH1')
+
 unmatchedfirstnp5 <- npfirstpositive %>% 
   filter( type == 'A' &  type.inf == 'B')
 
@@ -2148,3 +2161,4 @@ npfirstpositiveupdate <- npfirstpositiveupdate[order(npfirstpositiveupdate$subje
 npfirstpositiveupdate$sample.type <- 'Nasopharyngeal swab'
 
 saveRDS(npfirstpositiveupdate, "Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
+
