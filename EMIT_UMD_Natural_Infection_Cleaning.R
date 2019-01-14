@@ -91,6 +91,17 @@ sessionInfo() # for reproducibility
 clinical_in_file <- 'UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
 clinical_umd <- read.csv(clinical_in_file)
 
+# Clean up the raw data just a little 
+clinical_umd$date_indx_on <- as.factor(as.Date(clinical_umd$date_indx_on, format = "%m/%d/%y"))
+clinical_umd$date_indx_visit <- as.factor(as.Date(clinical_umd$date_indx_visit, format = "%m/%d/%y"))
+clinical_umd$date_ref <- as.factor(as.Date(clinical_umd$date_ref, format = "%m/%d/%y"))
+clinical_umd$date_enroll <- as.factor(as.Date(clinical_umd$date_enroll, format = "%m/%d/%y"))
+clinical_umd$date_on_sx <- as.factor(as.Date(clinical_umd$date_on_sx, format = "%m/%d/%y"))
+clinical_umd$date_visit <- as.factor(as.Date(clinical_umd$date_visit, format = "%m/%d/%y"))
+clinical_umd$date_fever_on <- as.factor(as.Date(clinical_umd$date_fever_on, format = "%m/%d/%y"))
+clinical_umd$date_cough <- as.factor(as.Date(clinical_umd$date_cough, format = "%m/%d/%y"))
+clinical_umd$date_g2_1 <- as.factor(as.Date(clinical_umd$date_g2_1, format = "%m/%d/%y"))
+
 # Let's produce some summary information about this clinical_umd df
 
 print(nrow(clinical_umd))
