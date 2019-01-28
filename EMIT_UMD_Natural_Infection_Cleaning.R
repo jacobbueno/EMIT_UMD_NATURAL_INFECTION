@@ -1454,7 +1454,7 @@ pcr_A3 <- pcr_A3 %>%
   rename(copies.in = Quantity..copies.) %>%
   select(-Well, -Well.Type, -Threshold..dRn.) %>%
   mutate(subject.id = gsub('_[0-9]*', '', Well.Name))
-pcr_A3[pcr_A3 == "No Ct"]<-''
+pcr_A3[pcr_A3 == "No Ct"] <- ''
 pcr_A3$copies.in <- as.numeric(pcr_A3$copies.in)
 
 # Number of rows in part2 (gii and 2rd or 3rd NP samples) influenza A PCR data
@@ -1775,7 +1775,7 @@ check <- m7.s %>%
 
 # Create a subset of the data (m7.s1) with subj who have only one assay or have more than one assay but the same result each time having only one row. And, with more than one row for those subj with different results for repeat assays
 # Keep only rows that are different in both result 'num' and subject name
-m7.s1 = m7.s[order(m7.s$subject_id), ]
+m7.s1 <- m7.s[order(m7.s$subject_id), ]
 
 # Count the number of rows n for each subject_id and find out the subjects with multiple experiments but different sample type
 m7.s2 <- m7.s1 %>% 
@@ -2030,7 +2030,7 @@ includetypepostive <- total.pcr %>%
 # *** Note: using an inner_join here for the sampletype eliminates 2 observations in the includetypepositive df that would otherwise be there were the sampletype df complete and did not contain NAs - there are 19 observations in the sampletype df that are missing their sample type (i.e., NPS, Fine, Coarse, Throat, Ant Nares, etc.)
 # I may be able to locate these samples in the freezer and determine the sample types. 
 
-# If the inner_join with the sampletype df with missing sample types is used, then we get a "includetypepositiv" df with 1461 observations
+# If the inner_join with the sampletype df with missing sample types is used, then we get a "includetypepositive" df with 1461 observations
 # How many subject IDs contribute to these 1461 observations.
 # *Remember that if we fix the sampletype file (i.e., fill in the 19 missing sample types), there is potential for 1463 observations
 includetypepositive_subjectID_check <- includetypepostive %>%
@@ -2201,6 +2201,8 @@ print(no.repeats.pos.2)
 ## Method 3 
 # Tobit(obs~sample.type+subject.id)---get fitted data for all the subjects (may be different from Method 1)
 
+# Question about the above notes (the notes above are from Jing) = how is Method 2 different from Method 3? They both say that they are meant to "get fitted data for all the subjects". Is Method 3 trying to get fitted data for all of the samples?
+
 ###
 #### READ in and work with "EMIT_subtypes_enrolled_positive.RDS" ####
 ## Note that this df is the product of other script and in Jing's original setup, was saved to R_output
@@ -2267,7 +2269,8 @@ npA <- npA %>%
   select(-Well.Name) %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
 
-npAfinal <- left_join(npA, npAcali, by = 'date')
+npAfinal <- npA %>%
+  left_join(npAcali, by = 'date')
 # The following samples were done without inter-run calibrators in the experiments, so the adjustment calibrators are missing
 npAfinal$cfactor[npAfinal$sample.id == '176_6'] <- 1
 npAfinal$cfactor[npAfinal$sample.id == '64_6'] <- 1
@@ -2302,7 +2305,7 @@ npB <- npB %>%
   mutate(subject.id = gsub('_[1-9]*_[0-Z]*', '', Well.Name)) %>%
   mutate(subject.id = gsub('_B', '', subject.id)) %>%
   mutate(subject.id = gsub('nfB', '', subject.id))
-npB[npB == "No Ct"]<-''
+npB[npB == "No Ct"] <- ''
 npB$copies.in <- as.numeric(npB$copies.in)
 npB <- npB %>% 
   mutate(copy.num = copies.in*100*411) %>%
@@ -2339,6 +2342,11 @@ npBfinal$virus.copies <- npBfinal$copy.num*npBfinal$cfactor
 npfirst <- rbind(npAfinal, npBfinal)
 npfirst$subject.id = as.integer(npfirst$subject.id)
 npfirst <- npfirst[order(npfirst$subject.id), ]
+
+# Check the number of subjectIDs, sampleIDs, and type of infection
+npfirst_sampleID_check <- npfirst %>%
+  group_by(sample.id, type) %>%
+  count()
 
 # npfirst has 378 observations and now let's see how many subject IDs there are
 
@@ -2403,6 +2411,7 @@ npfirstpositiveupdate_subjectID_check <- npfirstpositiveupdate %>%
 # Could treat it like when there is one/two positive detections for a replicate on the PCR plate?
 
 # Not sure the following bit of code makes changes the df at all and not really sure of the intended purpose of this bit of code. I will comment it out for now. 
+# I actually think the below code is responsible for misclassification of flu virus type (A or B) for samples that had both A and B infection!
 # npfirstpositiveupdate <- npfirstpositiveupdate %>%
 #   mutate(AorB = ifelse(type.inf == "B", "B",
 #                        ifelse(type.inf == "B and unsubtypable A", "A and B",
@@ -2411,6 +2420,9 @@ npfirstpositiveupdate_subjectID_check <- npfirstpositiveupdate %>%
 #   select(-AorB)
 
 saveRDS(npfirstpositiveupdate, "Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
+
+# Seems like there should be 2 PCR results for each of these samples (replicates in the PCR assay) but most of these only have a single pcr copy number. Is this intentional? 
+
 
 #### Working with the "EMIT_UMD_Final_Data_Summary.R" script ####
 # Title: EMIT_UMD_Final_Data_Summary.R
@@ -2812,11 +2824,16 @@ finaldataset_sampleID_check <- finaldataset %>%
   group_by(sample.id) %>%
   count()
 
+# We are noticing that there are quite a few NPS (and perhaps for other sample types) where there are replicates that haven't been averaged together yet
+# I figured out why there are only single per results (singlicate as opposed to duplicate) - it’s because these were part of the subtyping assays and there was only enough reagent to run the CDC panel in singlicate (or a second extraction would have been required). For this reason, the 1st day visit NP swabs were run in singlicate (many of them). Others got put on par assays later on and have duplicates. This explains the lack of consistency in the number of pcr results reported for first visit NP swabs here. We will move forward with the dataframe that we have generated. 
+
+# We also note that we have kept all of the data where there are multiple assays on the same sample. Tobit models will help us interpret these data, especially when there were 2 assays and one was positive while the other was negative (or there were a combination of replicates that were positive/negative)
+
 # This df is missing the following variables (compared with Jing's output):
 # centimeterheight
 # kilogramweight
 # BMI               
-# cur_asthma
+# cur_asthma (is this different than the asthma variable that is already in the df?)
 # lung_sym_2pos
 # fluvac_last2y
 # bothyear
