@@ -2362,7 +2362,7 @@ npfirst_subjectID_check_observations <- npfirst %>%
   filter(n >2)
 # There are 11 subjects with multiple day 1 NP swabs that were run for either flu A or flu B. 
 # I'm not talking about duplicates in the pcr assay - these are completely new experiments with new dates.
-# Should these multiple pcr results be averaged together or should we pick just the 
+# We will use all of the data, including that from repeat experiments
 
 npfirstpositive <- npfirst %>% 
   inner_join(flu.types, by = c("subject.id"))
@@ -2892,7 +2892,7 @@ symptom <- finesubgroup %>%
 # write.csv(symptom, "C:/Users/Jing/Desktop/symptomscoreupdate.csv") 
 
 finesubgroup <- finesubgroup %>% 
-  select(Experiment, subject.id, sample.id, type, type.inf, sample.type, final.copies,date.visit, cough_number, g2.run, dpo, upper_sym, lower_sym, systemic_sym, body_temp, asthma, g2_unit, chiller.t, elbow_rh, elbow_t, cond_tin, cond_tout, sex, fluvac_cur, anitviral_24h, Smoker)
+  select(Experiment, subject.id, sample.id, type, type.inf, sample.type, final.copies, date.visit, cough_number, g2.run, dpo, upper_sym, lower_sym, systemic_sym, body_temp, asthma, g2_unit, chiller.t, elbow_rh, elbow_t, cond_tin, cond_tout, sex, fluvac_cur, anitviral_24h, Smoker)
 
 count4 <- finesubgroup %>% 
   distinct(subject.id)
@@ -2990,14 +2990,180 @@ finaldataset_subjectID_check <- finaldataset %>%
   group_by(subject.id) %>%
   count()
 
-write.csv(finaldataset, "Curated Data/Cleaned Data/finaldatasetrepeatupdate.csv")
+write.csv(finaldataset, "Curated Data/Analytical Datasets/finaldatasetrepeatupdate.csv")
 
 #### Creating the "all_cases" df that has data on all of the enrolled participants (N=178) ####
+# This has been updated in the lucidchart
+# In the future, we could potentially move all of the cleaning and merging steps in the creation of final datasets to a different script.
+# Then we could simply read in the files that we need (they would have all been created in the current script) and then we could do the merge and fine tune cleaning steps separately for the 3 dataframes: the PNAS df, the 178 enrolled df, and the 158 flu positive df
+# Above we created the PNAS df (finaldataset)
+# Now we are working on the 178 enrolled df or the "all_cases" df
 
-daypickfinal
-enrolled <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+# Need to merge together the pcr data into a definitive set called allPCRfinal
+npfirst1 <- npfirst %>%
+  select(subject.id, sample.id, type, Experiment, Ct, cfactor, virus.copies) %>%
+  rename(Ct..dRn. = Ct)
+total.pcr1 <- total.pcr %>%
+  select(subject.id, Well.Name, type, Experiment, Ct..dRn., cfactor, virus.copies) %>%
+  rename(sample.id = Well.Name)
 
-enrolled_subtype
+samples.cc_type <- samples.cc %>%
+  select(sample.id, sample.type)
 
+pcr_full <- rbind(npfirst1, total.pcr1) %>%
+  left_join(enrolled, by = "subject.id") %>%
+  left_join(samples.cc_type, by = "sample.id") %>%
+  ungroup()
 
+pcr_full_subjectID_check <- pcr_full %>%
+  group_by(subject.id) %>%
+  count()
+# 207 subjects
 
+## Need the below code (copied from above) to manipulate the pcr data 
+# Instead of using includetypepostiiveupdate - will work from the combined npfirst and total.pcr file called pcr_full
+
+# Pick out all the PCR with A assay results
+allpcrA <- pcr_full %>% 
+  filter(type == 'A') %>%
+  rename(virus.copiesA = virus.copies, typeA = type) %>%
+  rename(CtA = Ct..dRn.)
+
+# Pick out all the PCR with B assay results
+allpcrB <- pcr_full %>% 
+  filter(type == 'B') %>%
+  rename(virus.copiesB = virus.copies, typeB = type) %>%
+  rename(CtB = Ct..dRn.)
+
+# Join both A and B assay, and also add sample type in the data list, assign the final RNA copies number for each sample type
+allPCR <- allpcrA %>%
+  full_join(allpcrB, by = c('subject.id', 'Experiment', 'type.inf', 'sample.id', 'sample.type', 'cfactor')) %>%
+  arrange(subject.id) %>% 
+  filter(!sample.type == 'Throat Swab')
+
+## DATA EDITING (dilution factors different for a few samples) ##
+# Flagged samples all NP swabs, dilution factor is 50
+# 66_7 120_7 184_8 188_7 189_7 192_7 196_7 262_7 277_7 284_12 284_7 296_12 296_7
+
+allPCR1 <- allPCR %>% 
+  filter(sample.id == '66_7' | sample.id == '120_7' | sample.id == '184_8' | sample.id == '188_7' | sample.id == '189_7' | sample.id == '192_7' | 
+           sample.id == '196_7' | sample.id == '262_7' | sample.id == '277_7' | sample.id == '284_12' | sample.id == '284_7' | 
+           sample.id == '296_12'| sample.id=='296_7')
+
+allPCR2 <- allPCR %>%
+  anti_join(allPCR1)
+
+allPCR3 <- allPCR1 %>% 
+  mutate(final.copiesA = virus.copiesA*50, final.copiesB = virus.copiesB*50)
+
+allPCR4 <- allPCR2 %>% 
+  filter(!sample.type == 'Nasopharyngeal swab') %>% 
+  mutate(final.copiesA = virus.copiesA*25, final.copiesB = virus.copiesB*25)
+
+allPCR5 <- allPCR2 %>% 
+  filter(sample.type == 'Nasopharyngeal swab') %>%
+  mutate(final.copiesA = virus.copiesA*100, final.copiesB = virus.copiesB*100)
+
+allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>% 
+  ungroup()
+
+allPCR.A <- allPCRtotal %>% 
+  filter(typeA == 'A') %>%
+  select(-CtB, -virus.copiesB, -typeB, -final.copiesB) %>%
+  rename(Ct = CtA,virus.copies = virus.copiesA, type = typeA, final.copies = final.copiesA)
+
+allPCR.B <- allPCRtotal %>% 
+  filter(typeB == 'B') %>%
+  select(-CtA, -virus.copiesA, -typeA, -final.copiesA) %>%
+  rename(Ct = CtB, virus.copies = virus.copiesB, type = typeB, final.copies = final.copiesB)
+
+# merge the seperated FILE FOR A and B back together, successfully make - one row for one subject.id
+allPCRfinal <- rbind(allPCR.A, allPCR.B) %>% 
+  ungroup() %>%
+  select(-type.inf, -sample.type)
+
+allPCRfinal_subjectID_check <- allPCRfinal %>%
+  group_by(subject.id) %>%
+  count()
+# 207 subject IDs have some sort of pcr data
+
+# Now get the enrolled df ready to merge
+enrolled_type.inf <- enrolled
+
+# Now get the daypickfinal df ready to merge
+daypickfinal_dpo <- daypickfinal %>%
+  select(subject.id, date.visit, dpo)
+# Note that the date_on_sx variable in the samples.cc df is more comprehensive than the one from daypickfinal_dpo because it includes data on more subjectIDs, not just 309 found for the daypickfinal df
+
+samples.cc_date_on_sx_subjectID_check <- samples.cc %>%
+  select(subject.id, sample.id, date.visit, date_on_sx) %>%
+  filter(!is.na(date_on_sx)) %>%
+  group_by(subject.id) %>%
+  count()
+# We see that the samples.cc df has date_on_sx for 331 subjects. 
+
+# Now get the clinical_umd_body_temp df ready to merge
+clinical_umd_body_temp <- clinical_umd_1 
+# Oddly enough, the clinical_umd_1 df is actually more comprehensive than the body_temp variable from the samples.cc df (this could be due to the way merges were done in the original script where samples.cc was created - this script is embedded in the current script now)
+
+# Now get the clinical_umd_symptoms df ready to merge
+clinical_umd_symptoms <- clinical_umd_2
+
+# Now get the clinical_umd_asthma df ready to merge
+clinical_umd_asthma <- clinical_umd_3
+
+# Now get the g2 log ready to merge
+g2_log1 # Already in good form
+
+# Now get the vacine_smoker_antiviral_sex df ready to merge
+VSAS # Already in good form
+
+# Oddly the body temp variable from the clinical_umd object appears to be more complete than the one in the samples.cc df
+# Thus we will elimnate the body_temp variable from samples.cc and use the one from clinical_umd_body_temp
+samples.cc <- samples.cc %>%
+  select(-body_temp)
+
+## Now can begin to bind all of the pieces together
+all_data <- samples.cc %>%
+  left_join(enrolled_type.inf, by = "subject.id") %>%
+  left_join(daypickfinal_dpo, by = c("subject.id", "date.visit")) %>%
+  left_join(allPCRfinal, by = c("subject.id", "sample.id")) %>%
+  left_join(clinical_umd_body_temp, by = c("subject.id", "date.visit")) %>% 
+  left_join(clinical_umd_symptoms, by = c("subject.id", "date.visit")) %>%
+  left_join(clinical_umd_asthma, by = "subject.id") %>%
+  left_join(g2_log1, by = c("subject.id", "date.visit")) %>%
+  left_join(VSAS, by = "subject.id")
+
+# Check number of subjectIDs in all_data df
+all_data_subjectID_check <- all_data %>%
+  group_by(subject.id) %>%
+  count()
+
+# Write out the all_data df
+write.csv(all_data, "Curated Data/Analytical Datasets/all_screened.csv")
+
+## Now, to make the all_cases df, we take the all
+all_cases <- enrolled_type.inf %>%
+  select(subject.id) %>%
+  inner_join(all_data)
+
+# Check number of subjectIDs in all_cases df
+all_cases_subjectID_check <- all_cases %>%
+  group_by(subject.id) %>%
+  count()
+
+# Write out the all_cases df
+write.csv(all_cases, "Curated Data/Analytical Datasets/all_cases.csv")
+
+## Now, to make the all_cases df, we take the all
+flu_cases <- subtype %>%
+  select(subject.id) %>%
+  inner_join(all_data)
+
+# Check number of subjectIDs in all_cases df
+flu_cases_subjectID_check <- flu_cases %>%
+  group_by(subject.id) %>%
+  count()
+
+# Write out the flu_cases df
+write.csv(flu_cases, "Curated Data/Analytical Datasets/flu_cases.csv")
