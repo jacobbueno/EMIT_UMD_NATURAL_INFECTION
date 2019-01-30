@@ -2514,31 +2514,156 @@ pcrgiivisit_subjectID_check <- pcrgiivisit %>%
 # (note: it is unclear how this file was created. It was found in Jing's R_output folder so presumably it was created with some script - unfortunately a search of files yielded none that might have produced this file)
 daypick1 <- read.csv("UMD_Raw_Data/REDCAP/daypostonset.csv")
 
-daypick <- daypick1 %>% 
-  distinct(subject.id, date.visit, dpo, .keep_all = TRUE) %>%
-  arrange(subject.id, dpo)
+# New plan (Januaray 29, 2019) regarding use of paypostonset data
+# It looks like the daypostonset.csv file that was in the raw data only has observations from 149 subject IDs and this is actually a major source of lost subject ID data between the 158 enrolled and positive cases and the 142 that made it into Jing's PNAS_df. 
 
-daypickfinal <- daypick %>% 
-  filter(!(dpo == 0 | dpo == 4 |dpo == 7))
-daypickfinal$date.visit <- as.Date(daypickfinal$date.visit, format = "%m/%d/%Y")
-daypickfinal$date_on_sx <- as.Date(daypickfinal$date_on_sx, format = "%m/%d/%Y")
+# Let's go back to the samples.cc df to recreate a new dayposonset df that has the data for all 178 screened individuals.
+
+samples.cc_dpo <- samples.cc %>%
+  distinct(subject.id, date.visit, date_on_sx)
+samples.cc_dpo$date.visit <- as.Date(samples.cc_dpo$date.visit)
+samples.cc_dpo$date_on_sx <- as.Date(samples.cc_dpo$date_on_sx)
+samples.cc_dpo <- samples.cc_dpo %>%
+  mutate(dpo = date.visit - date_on_sx) %>%
+  arrange(subject.id)
+
+# How many subject IDs is this for?
+samples.cc_dpo_subjectID_check <- samples.cc_dpo %>%
+  group_by(subject.id) %>%
+  count()
+
+# Need to add in the dpo where they are NA based on the date of symptom onset!
+
+sub <- unique(samples.cc_dpo$subject.id)
+samples.cc_dpo_full <- samples.cc_dpo %>%
+  filter(is.na(subject.id))
+
+for (i in 1:length(sub)) {
+  subid <- sub[i]
+  temp <- samples.cc_dpo[samples.cc_dpo$subject.id == subid, ]
+  for (j in 1:(nrow(temp))) {
+    temp$dpo[j] = temp$date.visit[j] - temp$date_on_sx[1]
+    samples.cc_dpo_full <- rbind(samples.cc_dpo_full, temp)
+  }
+}
+
+# This loop works ok, but there is a glitch with the NAs
+# To overcome this, we will filter out where dpo = NA and then take only the unique rows (to eliminate duplication that occurred in the loop)
+samples.cc_dpo <- samples.cc_dpo_full %>%
+  filter(!is.na(dpo)) %>%
+  distinct(subject.id, dpo, .keep_all = TRUE)
+
+# Note there were a few times where there was no date_on_sx and so dpo could not be determined.
+# This set of individuals was excluded from this version of samples.cc_dpo
+
+# check the subjectIDs remaining in samples.cc_dpo
+samples.cc_dpo_subjectID_check <- samples.cc_dpo %>%
+  group_by(subject.id) %>%
+  count()
+# There are 331 subjectIDs here - this means that we lost 24 that didn't have a date_on_sx recorded
+# Hopefully these 24 subjectIDs are part of the unenrolled group, however we will be able to check this.
+
+# Make the samples.cc_dpo df take on the daypick1 df
+daypick1 <- samples.cc_dpo
+
+## old version
+# daypick <- daypick1 %>%
+#   distinct(subject.id, date.visit, dpo, .keep_all = TRUE) %>%
+#   arrange(subject.id, dpo)
+# 
+# daypickfinal <- daypick %>% 
+#   filter(!(dpo == 0 | dpo == 4 |dpo == 7))
+# daypickfinal$date.visit <- as.Date(daypickfinal$date.visit, format = "%m/%d/%Y")
+# daypickfinal$date_on_sx <- as.Date(daypickfinal$date_on_sx, format = "%m/%d/%Y")
+## end old version
+
+daypickfinal <- daypick1 %>%
+  filter(dpo == 1 | dpo == 2 | dpo == 3)
+daypickfinal$dpo <- as.numeric(daypickfinal$dpo)
+daypickfinal <- daypickfinal %>%
+  arrange(subject.id, dpo)
 
 # SubjectID count check for daypickfinal (before merge)
 daypickfinal_subjectID_check <- daypickfinal %>%
   group_by(subject.id) %>%
   count()
-# This df (which is part of the raw data for the study) only has data on 149 participants. Wonder if this is the total recorded data for variable for the 355 individuals screened. Or perhaps this data was only taken from the 178 enrolled participants, in which case, we would expect there to be data from 178 on dpo. 
+
+# This new daypickfinal df has 309 subjectIDs (the filter command to select only those with dpo== 1, 2, or 3 eliminated 12 subjectID entries)
 
 # Merge and clean
 withdpo <- pcrgiivisit %>%
   inner_join(daypickfinal, by = c('subject.id', 'date.visit'))
+
+# Subject ID count check for withdpo
+withdpo_subjectID_check <- withdpo %>%
+  group_by(subject.id) %>%
+  count()
+
+# This merge reduces the number of subjectIDs from 157 in the pcrgiivisit df to 148 in the withdpo df (the daypickfinal df had 309)
+# Let's examine to see how we lost these 9 subjectIDs
+# Any subjectIDs in pcrgiivisit that weren't in daypickfinal?
+pcrgiivisit_but_not_in_daypickfinal <- pcrgiivisit %>%
+  anti_join(daypickfinal, by = c('subject.id')) %>%
+  group_by(subject.id) %>%
+  count()
+# In checking the dpo df before excluding for dpo == less than 1 or greater than 3, we see that:
+# 122 only had a dpo 4 so was excluded
+# 166 only had a dpo 4 so was excluded
+# 249 only had a dpo 7 so was excluded
+# 299 only had a dpo 4 so was excluded
+# 302 only had a dpo 4 so was excluded
+# 318 only had a dpo 4 so was excluded
+# 327 only had a dpo 0 so was excluded
+# 350 only had a dpo 0 so was excluded
+
+# But what about the 9th missing subjectID?
+# Let's compare the merged df with the pcrgiivisit df to see who is missing
+pcrgiivisit_but_not_in_withdpo <- pcrgiivisit %>%
+  anti_join(withdpo, by = "subject.id") %>%
+  group_by(subject.id) %>%
+  count()
+
+ninth_missing_subjectID <- pcrgiivisit_but_not_in_withdpo %>%
+  anti_join(pcrgiivisit_but_not_in_daypickfinal)
+# This shows that 114 was the other missing subjectID
+# Why was 114 missing? Was it missing from the daypickfinal df?
+
+record_for_114 <- pcrgiivisit %>%
+  filter(subject.id == 114)
+# We see that 114 had positive pcr detections on dpo 4 but there were no pcr records for 114 from the only other day of sample collection, which was on dpo 1. There shoud be more pcr records for 114 from dpo 1. Even if these were all negative, this case could be included in the final PNAS_df just like 174 was! Otherwise there is inconsistency in the analytical inclusion criteria!
+
 withdpo <- withdpo %>% 
   filter(!(is.na(cough_number)))
-# But does this cough_number include all the data from the recordings?
+# But does this cough_number include all the data from the recordings? We assume so.
 
+# Subject ID count check for withdpo
+withdpo_subjectID_check <- withdpo %>%
+  group_by(subject.id) %>%
+  count()
+# Thus - there were 2 records among the 148 that didn't have cough data so those were removed and now we are down to 146.
+
+## Jing says:
 # Remove experiment 9. 2015.06.19.014.74 2012-2013 Samples PCR Flu B 
 # Then we removed subjects 322 and 337 and remove 182 second visit
-# What is the explanation for this?(!)
+## End of Jing comment
+
+# But, what is the explanation for this? We solved the case - see note below - but it was due to bad interrun calibrator in the pcr assay.
+
+withdpo_322_record <- withdpo %>%
+  filter(subject.id == 322)
+# Only thing out of place is that the first sample was taken on dpo=0, but this shouldn't be reason to exclude the dpo=1 samples, remaining here, from inclusion!
+# I haven't seen any reason to support exclusion of this case. 
+
+withdpo_337_record <- withdpo %>%
+  filter(subject.id == 337)
+# I haven't seen any reason to support exclusion of this case. 
+# Is it because there is only a dpo=3 record here?
+
+withdpo_182_record <- withdpo %>%
+  filter(subject.id == 182)
+# I haven't seen any reason to support exclusion of dpo=2 data for this subject. 
+# Is it because there is no dpo=1 data here? If so, then why keep the dpo=3 data?
+
 withdpo <- withdpo[!(withdpo$subject.id == 322 | withdpo$subject.id == 337), ]
 withdpo <- withdpo[!(withdpo$subject.id == 182 & withdpo$g2.run == 2), ]
 
@@ -2547,13 +2672,20 @@ withdpo_subjectID_check <- withdpo %>%
   group_by(subject.id) %>%
   count()
 
+# After check some more notes, we see that 322, 337 and the second day of pcr data for 182 were excluded because the interrun-calibrator in the pcr assay was not working properly. 
+
 clinical_in_file <- 'UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv'
 clinical_umd <- read.csv(clinical_in_file)
+
+# Check out the format of the date_visit variable
+clinical_umd_date <- clinical_umd %>%
+  select(date_visit)
+
+clinical_umd$date_visit <- as.Date(clinical_umd$date_visit, format = "%m/%d/%y")
 
 clinical_umd1 <- clinical_umd %>% 
   select(field_subj_id, body_temp, date_visit, nose_run, nose_stuf, sneeze, throat_sr, earache, malaise, headache, mj_ache, sw_fever_chill, lymph_node, chest_tight, sob, cough, fluvac_cur, sex, asthma, anitviral_24h, smoke) %>%
   rename(subject.id = field_subj_id, date.visit = date_visit)
-clinical_umd1$date.visit <- as.Date(clinical_umd1$date.visit, format = "%m/%d/%y")
 
 clinical_umd_1 <- clinical_umd1 %>%
   select(subject.id, body_temp, date.visit) %>%
@@ -2700,7 +2832,7 @@ finaldata142_subjectID_check <- finaldata142 %>%
   group_by(subject.id) %>%
   count()
 
-saveRDS(finaldata142, "Curated Data/Cleaned Data/finaldata142.RDS")                                   
+saveRDS(finaldata142, "Curated Data/Cleaned Data/finaldata142.RDS")                         
 
 totalsamples <- finaldata142 %>% 
   distinct(subject.id, sample.id, sample.type, .keep_all = TRUE)
@@ -2810,7 +2942,7 @@ finaldataset$final.copies[is.na(finaldataset$final.copies)] <- '.'
 
 # Need to add some manipulation to the df right here to replicate what Jing produced for final input to the SAS program
 
-# First, the data should be arranged first by sample.type and next by subject.id, and then by experiment name (this doesn't really matter, but for the sake of sleuthing df difference we will do this)
+# Assess the df
 finaldataset_count <- finaldataset %>%
   arrange(sample.type, subject.id, date.visit, Experiment) %>%
   group_by(sample.type, subject.id, date.visit, Experiment, type.inf) %>%
@@ -2824,21 +2956,48 @@ finaldataset_sampleID_check <- finaldataset %>%
   group_by(sample.id) %>%
   count()
 
-# We are noticing that there are quite a few NPS (and perhaps for other sample types) where there are replicates that haven't been averaged together yet
-# I figured out why there are only single per results (singlicate as opposed to duplicate) - it’s because these were part of the subtyping assays and there was only enough reagent to run the CDC panel in singlicate (or a second extraction would have been required). For this reason, the 1st day visit NP swabs were run in singlicate (many of them). Others got put on par assays later on and have duplicates. This explains the lack of consistency in the number of pcr results reported for first visit NP swabs here. We will move forward with the dataframe that we have generated. 
+# I figured out why there are only single PCR replicate results (singlicate as opposed to duplicate) - it’s because these were part of the subtyping assays and there was only enough material to run the CDC panel in singlicate (or a second extraction would have been required). For this reason, the 1st day visit NP swabs were run in singlicate (many of them). Others got put on par assays later on and have duplicates. This explains the lack of consistency in the number of pcr results reported for first visit NP swabs here. We will move forward with the dataframe that we have generated. 
 
 # We also note that we have kept all of the data where there are multiple assays on the same sample. Tobit models will help us interpret these data, especially when there were 2 assays and one was positive while the other was negative (or there were a combination of replicates that were positive/negative)
 
 # This df is missing the following variables (compared with Jing's output):
 # centimeterheight
 # kilogramweight
-# BMI               
-# cur_asthma (is this different than the asthma variable that is already in the df?)
-# lung_sym_2pos
+# BMI
+# cur_asthma (how is this different than the asthma variable that is already in the df?)
+# lung_sym_2pos (not sure what this is or how to compute?)
 # fluvac_last2y
 # bothyear
 # age
 
 # Not sure what lung_symp_2pos means, but the other variables can be taken directly from the clinical_umd df or derived from variables in the clinical_umd df. 
 
+clinical_umd_height_weight_BMI_vax_age <- clinical_umd %>%
+  mutate(height_inches = height_in + 12*(height_ft)) %>%
+  mutate(height_cm = 2.54*(height_inches)) %>%
+  mutate(weight_kg = 0.453592*weight) %>%
+  mutate(BMI = weight_kg/((height_cm/100)^2)) %>%
+  mutate(vax_bothyear = ifelse(fluvac_cur == 1 & fluvac_last2y == 1, 1, 0)) %>%
+  rename(subject.id = field_subj_id, date.visit = date_visit) %>%
+  select(subject.id, date.visit, height_cm, weight_kg, BMI, vax_bothyear, fluvac_last2y, fluvac_10y, age)
+
+finaldataset <- finaldataset %>%
+  left_join(clinical_umd_height_weight_BMI_vax_age, by = c("subject.id", "date.visit")) %>%
+  filter(subject.id != 52) %>%
+  filter(subject.id != 58)
+
+finaldataset_subjectID_check <- finaldataset %>%
+  group_by(subject.id) %>%
+  count()
+
 write.csv(finaldataset, "Curated Data/Cleaned Data/finaldatasetrepeatupdate.csv")
+
+#### Creating the "all_cases" df that has data on all of the enrolled participants (N=178) ####
+
+daypickfinal
+enrolled <- readRDS("Curated Data/Cleaned Data/EMIT_subtypes_enrolled.RDS")
+
+enrolled_subtype
+
+
+
