@@ -3132,7 +3132,8 @@ all_data <- samples.cc %>%
   left_join(clinical_umd_symptoms, by = c("subject.id", "date.visit")) %>%
   left_join(clinical_umd_asthma, by = "subject.id") %>%
   left_join(g2_log1, by = c("subject.id", "date.visit")) %>%
-  left_join(VSAS, by = "subject.id")
+  left_join(VSAS, by = "subject.id") %>%
+  arrange(subject.id, date.visit, type, sample.type, final.copies)
 
 # Check number of subjectIDs in all_data df
 all_data_subjectID_check <- all_data %>%
@@ -3167,3 +3168,82 @@ flu_cases_subjectID_check <- flu_cases %>%
 
 # Write out the flu_cases df
 write.csv(flu_cases, "Curated Data/Analytical Datasets/flu_cases.csv")
+
+#### Comparing the differences between the analytical datasets ####
+# Let's look at the difference between the all_data (all screened) df of 355 subjects and the all_cases df of 178 subjects
+
+screened_to_cases <- all_data %>%
+  anti_join(all_cases)
+
+screened_to_cases_sample_sampling_instance_check <- screened_to_cases %>%
+  group_by(subject.id, date.visit) %>%
+  count()
+# 192 subject sampling instances in the df
+
+screened_to_cases_subjectID_check <- screened_to_cases %>%
+  group_by(subject.id) %>%
+  count()
+# 177 subjectID excluded (these 177 produce 192 sampling instances in the df)
+
+screened_to_cases_positive_subjectIDs <- screened_to_cases %>%
+  filter(Ct != '') %>%
+  group_by(subject.id) %>%
+  count()
+# Looks like there were 8 instances where there was flu positivity among those where were excluded/not enrolled.
+# We can probably check this by looking to see how many had negative assays and if we assume that only those who were part of the sensitivity analysis received a PCR test.
+
+# Let's look at the difference between the all_cases df of 178 subjects and the flu_cases df of 158 subjects
+
+cases_to_flucases <- all_cases %>%
+  anti_join(flu_cases)
+
+cases_to_flucases_sample_sampling_instance_check <- cases_to_flucases %>%
+  group_by(subject.id, date.visit) %>%
+  count()
+# 26 subject sampling instances in the df
+
+cases_to_flucases_subjectID_check <- cases_to_flucases %>%
+  group_by(subject.id) %>%
+  count()
+# 20 subjectID excluded (these 20 produce 26 sampling instances in the df)
+
+cases_to_flucases_flu_positive_subjectIDs <- cases_to_flucases %>%
+  filter(Ct != '') %>%
+  group_by(subject.id) %>%
+  count()
+# only subject 47 had a ct value but it was Ct>44 and is thus considered not a true positive. 
+
+# Let's look at the difference between the flu_cases df of 158 subjects and the finaldataset PNAS df of 142 subjects
+
+flucases_to_PNAS <- flu_cases %>%
+  anti_join(finaldataset, by = c("subject.id", "date.visit"))
+
+flucases_to_PNAS_sample_sampling_instance_check <- flucases_to_PNAS %>%
+  group_by(subject.id, date.visit) %>%
+  count()
+# 37 subject sampling instances in the df
+
+flucases_to_PNAS_subjectID_check <- flucases_to_PNAS %>%
+  group_by(subject.id) %>%
+  count()
+# 30 subjectID excluded (these 30 produce 37 sampling instances in the df)
+# Hmm, have to fix this - the anti_join doesn't work as well with these dfs because the variables are not all in both dfs!
+
+flucases_to_PNAS_flu_positive_subjectIDs <- flucases_to_PNAS %>%
+  filter(Ct != '') %>%
+  group_by(subject.id) %>%
+  count()
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
