@@ -202,6 +202,11 @@ sum_clinical_subjectID_count <- sum_clinical %>%
 g2_in_file <- 'UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
 g2_log <- read.csv(g2_in_file)
 
+# Check the number of sampling instances here
+g2_log_sampling_instance_check <- g2_log %>%
+  distinct(subject_id, start_dt)
+# This yields 277 but this is before the data clean. 
+
 print(nrow(g2_log))
 print(ncol(g2_log))
 
@@ -280,6 +285,11 @@ print(head(tbl_df(g2_log_min)))
 g2_log_min_subjectID_count <- g2_log_min %>%
   group_by(field_subj_id) %>%
   summarise (count = n())
+# 178 subjects
+
+# Check the number of sampling instances here
+g2_log_sampling_instance_check <- g2_log_min %>%
+  distinct(field_subj_id, date_visit)
 # This shows that this df has information on the 276 instances of Gii runs for the 178 enrolled participants
 
 #### MERGE CLINICAL AND G2-LOG DATA ####
@@ -2577,33 +2587,55 @@ daypick1 <- samples.cc_dpo
 # daypickfinal$date_on_sx <- as.Date(daypickfinal$date_on_sx, format = "%m/%d/%Y")
 ## end old version
 
-daypickfinal <- daypick1 %>%
-  filter(dpo == 1 | dpo == 2 | dpo == 3)
-daypickfinal$dpo <- as.numeric(daypickfinal$dpo)
-daypickfinal <- daypickfinal %>%
+daypickfinal_full <- daypick1
+daypickfinal_full$dpo <- as.numeric(daypickfinal_full$dpo)
+daypickfinal_full <- daypickfinal_full %>%
   arrange(subject.id, dpo)
 
-# SubjectID count check for daypickfinal (before merge)
-daypickfinal_subjectID_check <- daypickfinal %>%
+# SubjectID count check for daypickfinal_full
+daypickfinal_full_subjectID_check <- daypickfinal_full %>%
+  group_by(subject.id) %>%
+  count()
+# 331 subjectIDs
+# But how many sampling instances?
+daypickfinal_full_sampling_instance_check <- daypickfinal_full %>%
+  distinct(subject.id, date.visit)
+# 440 sampling instances when we use all of the daypickfinal data (inclusive of dpo day)
+
+# But when we restrict the dpo day to just dpo=1-3, then how many sampling instances do we get?
+
+# Jing's final PNAS dataset requires this daypickfinal to only include the dpo=1-3, however we left the daypickfinal_full version above to help recreate and understand all the places we whittled down subjectIDs and/or sampling instances
+daypickfinal_dpo1_through_3 <- daypick1 %>% 
+  filter(dpo == 1 | dpo == 2 | dpo == 3)
+daypickfinal_dpo1_through_3$dpo <- as.numeric(daypickfinal_dpo1_through_3$dpo)
+daypickfinal_dpo1_through_3 <- daypickfinal_dpo1_through_3 %>%
+  arrange(subject.id, dpo)
+
+# SubjectID count check for daypickfinal_dpo1_through_3 (before merge)
+daypickfinal_dpo1_through_3_subjectID_check <- daypickfinal_dpo1_through_3 %>%
   group_by(subject.id) %>%
   count()
 
-# This new daypickfinal df has 309 subjectIDs (the filter command to select only those with dpo== 1, 2, or 3 eliminated 12 subjectID entries)
+# This new daypickfinal_dpo1_through_3 df has 309 subjectIDs (the filter command to select only those with dpo== 1, 2, or 3 eliminated 22 subjectID entries from daypickfinal_full)
+# But how many sampling instances do we get now with the daypickfinal_dpo1_through_3 df?
+daypickfinal_dpo1_through_3_sampling_instance_check <- daypickfinal_dpo1_through_3 %>%
+  distinct(subject.id, date.visit)
+# we get 399 sampling instances when restricting the dpo df to dpo=1-3
 
 # Merge and clean
 withdpo <- pcrgiivisit %>%
-  inner_join(daypickfinal, by = c('subject.id', 'date.visit'))
+  inner_join(daypickfinal_dpo1_through_3, by = c('subject.id', 'date.visit'))
 
 # Subject ID count check for withdpo
 withdpo_subjectID_check <- withdpo %>%
   group_by(subject.id) %>%
   count()
 
-# This merge reduces the number of subjectIDs from 157 in the pcrgiivisit df to 148 in the withdpo df (the daypickfinal df had 309)
+# This merge reduces the number of subjectIDs from 157 in the pcrgiivisit df to 148 in the withdpo df (the daypickfinal_dpo1_through_3 df had 309)
 # Let's examine to see how we lost these 9 subjectIDs
-# Any subjectIDs in pcrgiivisit that weren't in daypickfinal?
-pcrgiivisit_but_not_in_daypickfinal <- pcrgiivisit %>%
-  anti_join(daypickfinal, by = c('subject.id')) %>%
+# Any subjectIDs in pcrgiivisit that weren't in daypickfinal_dpo1_through_3?
+pcrgiivisit_but_not_in_daypickfinal_dpo1_through_3 <- pcrgiivisit %>%
+  anti_join(daypickfinal_dpo1_through_3, by = c('subject.id')) %>%
   group_by(subject.id) %>%
   count()
 # In checking the dpo df before excluding for dpo == less than 1 or greater than 3, we see that:
@@ -2624,9 +2656,9 @@ pcrgiivisit_but_not_in_withdpo <- pcrgiivisit %>%
   count()
 
 ninth_missing_subjectID <- pcrgiivisit_but_not_in_withdpo %>%
-  anti_join(pcrgiivisit_but_not_in_daypickfinal)
+  anti_join(pcrgiivisit_but_not_in_daypickfinal_dpo1_through_3)
 # This shows that 114 was the other missing subjectID
-# Why was 114 missing? Was it missing from the daypickfinal df?
+# Why was 114 missing? Was it missing from the daypickfinal_dpo1_through_3 df?
 
 record_for_114 <- pcrgiivisit %>%
   filter(subject.id == 114)
@@ -2992,12 +3024,7 @@ finaldataset_subjectID_check <- finaldataset %>%
 
 write.csv(finaldataset, "Curated Data/Analytical Datasets/finaldatasetrepeatupdate.csv")
 
-#### Creating the "all_cases" df that has data on all of the enrolled participants (N=178) ####
-# This has been updated in the lucidchart
-# In the future, we could potentially move all of the cleaning and merging steps in the creation of final datasets to a different script.
-# Then we could simply read in the files that we need (they would have all been created in the current script) and then we could do the merge and fine tune cleaning steps separately for the 3 dataframes: the PNAS df, the 178 enrolled df, and the 158 flu positive df
-# Above we created the PNAS df (finaldataset)
-# Now we are working on the 178 enrolled df or the "all_cases" df
+### Creating the "all_data" df that has all the data from all of the screened and enrolled participants ####
 
 # Need to merge together the pcr data into a definitive set called allPCRfinal
 npfirst1 <- npfirst %>%
@@ -3090,17 +3117,27 @@ allPCRfinal_subjectID_check <- allPCRfinal %>%
 # Now get the enrolled df ready to merge
 enrolled_type.inf <- enrolled
 
-# Now get the daypickfinal df ready to merge
-daypickfinal_dpo <- daypickfinal %>%
+# Now get the daypickfinal_full df ready to merge
+daypickfinal_dpo <- daypickfinal_full %>%
   select(subject.id, date.visit, dpo)
-# Note that the date_on_sx variable in the samples.cc df is more comprehensive than the one from daypickfinal_dpo because it includes data on more subjectIDs, not just 309 found for the daypickfinal df
+# Note that the date_on_sx variable in the samples.cc df is more comprehensive than the one from daypickfinal_dpo because it includes data on more subjectIDs.
+# samples.cc contains 473 sampling instances, while daypickfinal_full contains 440 sampling instances.
 
 samples.cc_date_on_sx_subjectID_check <- samples.cc %>%
   select(subject.id, sample.id, date.visit, date_on_sx) %>%
   filter(!is.na(date_on_sx)) %>%
   group_by(subject.id) %>%
   count()
-# We see that the samples.cc df has date_on_sx for 331 subjects. 
+# We see that the samples.cc df has date_on_sx for 331 subjects (same as for the daypickfinal_full df). 
+# Now let's check how many sampling instances the samples.cc has
+samples.cc_sampling_instances_check <- samples.cc %>%
+  distinct(subject.id, date.visit)
+# 473 sampling instances. But what about if we exclude to only those sampling instances that are associated with g2 visits?
+
+samples.cc_gii_sampling_instances_check <- samples.cc %>%
+  filter(g2.run !=0) %>%
+  distinct(subject.id, date.visit)
+# There are 276 sampling instances. 
 
 # Now get the clinical_umd_body_temp df ready to merge
 clinical_umd_body_temp <- clinical_umd_1 
@@ -3140,34 +3177,214 @@ all_data_subjectID_check <- all_data %>%
   group_by(subject.id) %>%
   count()
 
+all_data_gii_sample_instance_check <- all_data %>%
+  #filter(g2.run == 1 | g2.run == 2 | g2.run == 3) %>%
+  distinct(subject.id, date.visit) 
+# Hmm, I'm getting 276 entries here but we should have 278 according to PNAS SI Table S1. 
+# Looking back through the G2 log and the rest of the data, I keep seeing 276 as the correct number here.
+# I'm not able to replicate the 278 number here. 
+
 # Write out the all_data df
 write.csv(all_data, "Curated Data/Analytical Datasets/all_screened.csv")
 
-## Now, to make the all_cases df, we take the all
+#### Creating the all_cases dfs ####
+
+## Now, to make the all_cases df, we take only the subjects that are in the enrolled_type.inf object and also cut to only those with g2 data
 all_cases <- enrolled_type.inf %>%
   select(subject.id) %>%
   inner_join(all_data)
-
-# Check number of subjectIDs in all_cases df
-all_cases_subjectID_check <- all_cases %>%
-  group_by(subject.id) %>%
-  count()
-
-# Write out the all_cases df
+  
 write.csv(all_cases, "Curated Data/Analytical Datasets/all_cases.csv")
 
-## Now, to make the all_cases df, we take the all
+all_cases_gii_samples <- enrolled_type.inf %>%
+  select(subject.id) %>%
+  inner_join(all_data) %>%
+  filter(g2.run != 0)
+
+# Check number of subjectIDs in all_cases df
+all_cases_subjectID_check <- all_cases_gii_samples %>%
+  group_by(subject.id) %>%
+  count()
+# There are 178 subjects
+
+all_cases_gii_sample_instance_check <- all_cases_gii_samples %>%
+  distinct(subject.id, date.visit)
+# There are 276 gii sampling instances on these 178 subjects. 
+
+# Write out the all_cases df
+write.csv(all_cases_gii_samples, "Curated Data/Analytical Datasets/all_cases_gii_samples.csv")
+
+#### Creating flu_cases dfs ####
+## Now, to make the flu_cases df, we take the all the data where we have an enrolled participant (i.e., data on subtype used as a positive key for if someone enrolled and was positive for influenza virus)
 flu_cases <- subtype %>%
   select(subject.id) %>%
   inner_join(all_data)
 
+write.csv(flu_cases, "Curated Data/Analytical Datasets/flu_cases.csv")
+
+# We will also make another version of this that includes only the data where gii sampling instances occurred. 
+flu_cases_gii_samples <- subtype %>%
+  select(subject.id) %>%
+  inner_join(all_data)  %>%
+  filter(g2.run != 0)
+  
 # Check number of subjectIDs in all_cases df
-flu_cases_subjectID_check <- flu_cases %>%
+flu_cases_gii_samples_subjectID_check <- flu_cases_gii_samples %>%
   group_by(subject.id) %>%
   count()
+# 158 subjectIDs
 
-# Write out the flu_cases df
-write.csv(flu_cases, "Curated Data/Analytical Datasets/flu_cases.csv")
+# Check the number of gii sampling instances
+flu_cases_gii_samples_gii_sampling_instances_check <- flu_cases_gii_samples %>%
+  distinct(subject.id, date.visit)
+# 250 gii sampling instances for the 150 subjects
+
+# Let's examine this set of sampling instances that was just eliminated when we went from all_cases to flu_cases_gii_samples
+all_cases_to_flu_cases_gii_samples <- all_cases %>%
+  anti_join(flu_cases_gii_samples)
+
+# Check to make sure all of these instances were negative (for the instances where there was pcr data)
+all_cases_to_flu_cases_gii_samples_pcr <- all_cases_to_flu_cases_gii_samples %>%
+  filter(Ct > 0)
+# Correct. Only 47 had a ct value and this was >44 so it was counted as negative. 
+# So, now let's count how many gii sampling instances are part of this all_cases_to_flu_cases_gii_samples df
+
+all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check <- all_cases_to_flu_cases_gii_samples %>%
+  distinct(subject.id, date.visit)
+# There were 26 instances here that were removed due to "not confirmed by PCR"
+# Were these 26 instances just among the 20 subjects excluded or were there others gii instances excluded from some subjects outside of the grouop of 20?
+# The 26 should just be from the 20 subjects excluded but let's double check
+all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check_subID <- all_cases_to_flu_cases_gii_samples %>%
+  distinct(subject.id, date.visit) %>%
+  distinct(subject.id)
+# Sure enough, the 26 gii instances came from the 20 subjects excluded.
+
+# Write out the flu_cases_gii_samples df
+write.csv(flu_cases_gii_samples, "Curated Data/Analytical Datasets/flu_cases_gii_samples.csv")
+
+#### Getting from the 158 subjects and 250 sampling instances down to the numbers in the final PNAS dataset ####
+
+## Exclude visits on dpo = 0
+flu_cases_gii_samples_exclude_day0 <- flu_cases_gii_samples %>%
+  filter(dpo != 0)
+
+# Check subject IDs
+flu_cases_gii_samples_exclude_day0_subjectID_check <- flu_cases_gii_samples_exclude_day0 %>%
+  distinct(subject.id)
+# 156 subjects (2 subjects fewer than before this round of exclusion)
+
+# Check gii sampling instances
+flu_cases_gii_samples_exclude_day0_gii_sampling_instance_check <- flu_cases_gii_samples_exclude_day0 %>%
+  distinct(subject.id, date.visit)
+# 242 gii sampling instances (8 subjects fewer than before this round of exclusion)
+
+# Who are the subjects that contributed to thes 8 gii sampling instances excluded  and how many of these instances do they account for each?
+flu_cases_gii_samples_exclude_day0_gii_sampling_instance_check_subID <- flu_cases_gii_samples_gii_sampling_instances_check %>%
+  anti_join(flu_cases_gii_samples_exclude_day0_gii_sampling_instance_check) %>%
+  group_by(subject.id, date.visit) %>%
+  count()
+# This shows that there were 8 subjects that each lost a single gii sampling instance, however 6 of these had multiple gii sampling instances and thus, not all of their data was excluded by this exclusion step.
+# To check which subjects were the 2 that were completely excluded via this data exclusion step...
+dpo0_subjects <- flu_cases_gii_samples_subjectID_check %>%
+  anti_join(flu_cases_gii_samples_exclude_day0_subjectID_check) %>%
+  count()
+
+## Exclude visits after dpo = 3
+flu_cases_gii_samples_exclude_day0_and_dpo4plus <- flu_cases_gii_samples_exclude_day0 %>%
+  filter(dpo == 1 | dpo == 2 | dpo ==3)
+
+# Check subject IDs
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_subjectID_check <- flu_cases_gii_samples_exclude_day0_and_dpo4plus %>%
+  distinct(subject.id, .keep_all = TRUE)
+# 149 subjects
+
+# Check gii sampling instances
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_gii_sampling_instance_check <- flu_cases_gii_samples_exclude_day0_and_dpo4plus %>%
+  distinct(subject.id, date.visit)
+# 232 gii sampling instances
+
+# Who are the subjects that contributed to thes 10 gii sampling instances excluded  and how many of these instances do they account for each?
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_gii_sampling_instance_check_subID <- flu_cases_gii_samples_exclude_day0_gii_sampling_instance_check %>%
+  anti_join(flu_cases_gii_samples_exclude_day0_and_dpo4plus_gii_sampling_instance_check) %>%
+  group_by(subject.id, date.visit) %>%
+  count()
+# This shows that there were 10 subjects that each lost a single gii sampling instance, however 3 of these had multiple gii sampling instances and thus, not all of their data was excluded by this exclusion step.
+# To check which subjects were the 7 that were completely excluded via this data exclusion step...
+dpo0_and_4plus_subjects <- flu_cases_gii_samples_exclude_day0_subjectID_check %>%
+  anti_join(flu_cases_gii_samples_exclude_day0_and_dpo4plus_subjectID_check) %>%
+  count()
+# To check which subjects were the other 4 that were not completely excluded via this data exclusion step...
+remaining <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_gii_sampling_instance_check_subID %>%
+  anti_join(dpo0_and_4plus_subjects)
+
+## Exclude where cough data is missing
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough <- flu_cases_gii_samples_exclude_day0_and_dpo4plus %>%
+  filter(!is.na(cough_number))
+
+# Check subject IDs
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_subjectID_check <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough %>%
+  distinct(subject.id)
+# 147 subjects
+
+# Check gii sampling instances
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_gii_sampling_instance_check <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough %>%
+  distinct(subject.id, date.visit)
+# 225 gii sampling instances
+
+# Who are the subjects that contributed to thes 7 gii sampling instances excluded  and how many of these instances do they account for each?
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_gii_sampling_instance_check_subID <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_gii_sampling_instance_check %>%
+  anti_join(flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_gii_sampling_instance_check) %>%
+  distinct(subject.id)
+# This shows that there were 7 subjects that each lost a single gii sampling instance, however 5 of these had multiple gii sampling instances and thus, not all of their data was excluded by this exclusion step.
+# To check which subjects were the 2 that were completely excluded via this data exclusion step...
+dpo0_and_4plus_cough_subjects <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_subjectID_check %>%
+  anti_join(flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_subjectID_check) %>%
+  count()
+# To check which subjects were the other 5 that were not completely excluded via this data exclusion step...
+remaining <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_gii_sampling_instance_check_subID %>%
+  anti_join(dpo0_and_4plus_cough_subjects, by = "subject.id")
+
+## Exclude where there is incomplete PCR data
+
+# DATA EXCLUSION DUE TO PCR & OTHER ISSUES ##
+# Drop 333 only gii visit because lost coarse aerosol sample (although good data exists for the NP and the fine aerosol)
+# Drop 52 because false positive (this makes 52 a negative case and thus we exclude all 2/2 gii sampling instances)
+# Drop 58 because false positive (58 only had 1 gii sampling instance so this was excluded)
+# Drop 182 2nd gii visit because bad interrun calibrator on the PCR (there is still a 1st gii visit for 182 so this subject is not excluded entirely)
+# Drop 322 because bad interrun calibrator on the PCR (this was the only gii sampling instance so this subject is excluded entirely)
+# Drop 337 because bad interrun calibrator on the PCR (this was the only gii sampling instance so this subject is excluded entirely)
+
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough %>%
+  filter(!subject.id %in% c(333, 52, 58, 322, 337)) %>%
+  filter(!(subject.id == 182 & date.visit == "2013-02-08"))
+
+## END DATA EXCLUSION DUE TO PCR & OTHER ISSUES ##
+
+# Check subject IDs
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR_subjectID_check <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR %>%
+  distinct(subject.id)
+# 142 subjects
+
+# Check gii sampling instances
+flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR_gii_sampling_instance_check <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR %>%
+  filter(g2.run != 0) %>%
+  distinct(subject.id, date.visit)
+# 218 gii sampling instances
+
+# Let's make the name of this df a little better to understand
+PNAS_data_full <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR
+
+write.csv(PNAS_data_full, "Curated Data/Analytical Datasets/PNAS_data_full.csv")
+
+#### See if we can get from this PNAS_data_full df to the finaldataset that is more ready for tobit model analysis ####
+
+##
+
+#### Exploring the PNAS_data_full df and the flu_cases df a little more ####
+
+##
+
+
 
 #### Comparing the differences between the analytical datasets ####
 # Let's look at the difference between the all_data (all screened) df of 355 subjects and the all_cases df of 178 subjects
@@ -3192,10 +3409,10 @@ screened_to_cases_positive_subjectIDs <- screened_to_cases %>%
 # Looks like there were 8 instances where there was flu positivity among those where were excluded/not enrolled.
 # We can probably check this by looking to see how many had negative assays and if we assume that only those who were part of the sensitivity analysis received a PCR test.
 
-# Let's look at the difference between the all_cases df of 178 subjects and the flu_cases df of 158 subjects
+# Let's look at the difference between the all_cases df of 178 subjects and the flu_cases_gii_samples df of 158 subjects
 
 cases_to_flucases <- all_cases %>%
-  anti_join(flu_cases)
+  anti_join(flu_cases_gii_samples)
 
 cases_to_flucases_sample_sampling_instance_check <- cases_to_flucases %>%
   group_by(subject.id, date.visit) %>%
@@ -3213,9 +3430,33 @@ cases_to_flucases_flu_positive_subjectIDs <- cases_to_flucases %>%
   count()
 # only subject 47 had a ct value but it was Ct>44 and is thus considered not a true positive. 
 
-# Let's look at the difference between the flu_cases df of 158 subjects and the finaldataset PNAS df of 142 subjects
+# Let's look at the difference between the flu_cases_gii_samples df of 158 subjects and the finaldataset PNAS df of 142 subjects
 
-flucases_to_PNAS <- flu_cases %>%
+# Because the variables in the finaldataset are not 100% same the as in the flu_cases_gii_samples df (due to fine tune tweaking and curation of the analytical df for PNAS manuscript) it may be most useful to first find a set of subjectIDs that exist in the flu_cases_gii_samples df but not in the finaldataset df.
+# Then we can go one step further to assess subjectID-sampling instances. I believe there are at least a couple of instances where one of the sampling days for a particular subject is included, while other day(s) of data are not included. 
+
+finaldataset_subjects <- finaldataset %>%
+  group_by(subject.id) %>%
+  count() %>%
+  select(subject.id)
+
+flu_cases_gii_samples_subjects <- flu_cases_gii_samples %>%
+  group_by(subject.id) %>%
+  count() %>%
+  select(subject.id)
+
+flucases_to_PNAS_subjects_allvariables <- flu_cases_gii_samples %>%
+  anti_join(finaldataset_subjects)
+# This gives 218 observations of subject-sampling instance data for the subjects not included in the final PNAS df but included in the flu_cases_gii_samples.
+
+flucases_to_PNAS_subjectID_check <- flucases_to_PNAS_subjects_allvariables %>%
+  group_by(subject.id) %>%
+  count()
+# This gives the list of 16 subjects who were not included in the PNAS df but were enrolled as cases in the study. 
+
+# Now need to add onto this list of 16 (that had all sampling instance data not included in the PNAS df), a list of the other subjects and their sampling instances 
+
+flucases_to_PNAS <- flu_cases_gii_samples %>%
   anti_join(finaldataset, by = c("subject.id", "date.visit"))
 
 flucases_to_PNAS_sample_sampling_instance_check <- flucases_to_PNAS %>%
@@ -3233,17 +3474,6 @@ flucases_to_PNAS_flu_positive_subjectIDs <- flucases_to_PNAS %>%
   filter(Ct != '') %>%
   group_by(subject.id) %>%
   count()
-
-
-
-
-
-
-
-
-  
-  
-
 
 
 
