@@ -51,7 +51,7 @@ focus_pos_fine_subjects <- focus_pos %>%
   distinct(subject.id)
 print(nrow(focus_pos_fine_subjects))
 
-focus_pos_person_visits <- focus_pos_fine %>%
+focus_pos_person_visits <- focus_pos %>%
   distinct(subject.id, date.visit)
 print(nrow(focus_pos_person_visits))
 
@@ -72,7 +72,7 @@ focus_pos_fine_ever_pos_subjects <- focus_pos_fine %>%
 print(nrow(focus_pos_fine_ever_pos_subjects))
 
 focus_pos_fine_neg <- focus_pos_fine %>%
-  anti_join(focus_pos_fine_ever_pos) %>%
+  anti_join(focus_pos_fine_ever_pos_subjects) %>%
   distinct(subject.id, date.visit)
 print(nrow(focus_pos_fine_neg))
 
@@ -142,3 +142,21 @@ table(focus_pos_fine_pos_averaged_replicates$dpo)
 
 # writing this out so that Charles Ma can work on it related to the power calculation for new RO1 grants due Februrary 5, 2019
 # write.csv(focus_pos_fine_pos_averaged_replicates, "/Users/jbueno/Desktop/focus_pos_fine_pos.csv")
+
+#### Exploratory data analysis ####
+# Note that some exploration of the dataset occurred in the Cleaning script in order to understand the df was being constructed.
+# However, this earlier exploration focused solely on the issues of instances of negative sampling instances and negative NPS instances for the population.
+# Here we focus on describing some of the key variables. 
+
+
+
+
+
+
+
+
+
+
+
+
+

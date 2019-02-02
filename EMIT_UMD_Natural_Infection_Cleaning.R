@@ -3472,6 +3472,7 @@ gii_person_visit_negative_NPS <- PNAS_data_full %>%
   distinct(subject.id, date.visit, .keep_all = TRUE) %>%
   select(subject.id, date.visit, type.inf)
 print(gii_person_visit_negative_NPS)
+# However a closer look at these 16 instances revealed that there were only sampling instances from 5 subjects where there were positive results but negative NPS data. 
 
 # Person-visits with all negative samples
 ever_positive <- PNAS_data_full %>%
