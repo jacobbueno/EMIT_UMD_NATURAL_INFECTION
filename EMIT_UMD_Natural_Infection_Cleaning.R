@@ -12,12 +12,14 @@ library(readxl)
 library(knitr)
 library(data.table)
 library(lubridate)
+library(arsenal)
+library(lme4)
 
 setwd("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection")
 
 sessionInfo() # for reproducibility
 
-# Now pasting code from Jing Yan and Don Milton that was used in previous work on the EMIT UMD data.
+# Now pasting code from Jing Yan and Don Milton that was used in previous work on the EMIT UMD data and working with it to make sure that it functions like it was intended and to reproduce the final dataset that was used in the PNAS analysis.
 # The goal here is to review their script and improve the clarity
 
 #### **** Using Script: Jing Yan and Dr. Milton's "Merge 1-3-update.R" **** ####
@@ -3371,109 +3373,111 @@ flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR_g
   distinct(subject.id, date.visit)
 # 218 gii sampling instances
 
-# Let's make the name of this df a little better to understand
+# Let's make the name of this df a little better to understand and remove superfluous observations to get out what we got for the finaldataset df
 PNAS_data_full <- flu_cases_gii_samples_exclude_day0_and_dpo4plus_and_missingcough_incompletePCR
+
+## Remove the throat swab and anterior nasal swab information
+## Also remove all the times that the type.inf doesn't match with the type
+
+table(PNAS_data_full$type.inf)
+table(PNAS_data_full$type)
+
+PNAS_data_full <- PNAS_data_full %>%
+  filter(sample.type != "Throat Swab") %>%
+  filter(sample.type != "anterior nasal swab") %>%
+  filter((type.inf == "H3N2" & type == "A") | 
+           (type.inf == "Pandemic H1" & type == "A") |
+           (type.inf == "Unsubtypable A" & type == "A") |
+           (type.inf == "H3N2 and PH1" & type == "A") |
+           (type.inf == "B" & type == "B") |
+           (type.inf == "B and unsubtypable A" & (type == "B" | type == "A")) |
+           (type.inf == "H3N2 and B" & (type == "B" | type == "A")))
+
+# Note that the PNAS_data_full is called PNAS becasue it has additional variables, such as rapid test results, that the finaldataset (and the PNAS set that Jing used) don't have
 
 write.csv(PNAS_data_full, "Curated Data/Analytical Datasets/PNAS_data_full.csv")
 
-#### See if we can get from this PNAS_data_full df to the finaldataset that is more ready for tobit model analysis ####
+## Compare the PNAS_data_full df with the finaldataset that was already produced.
+# The only difference should be that the PNAS_data_full has some vars that aren't in finaldataset.
+# Also note that the finaldataset df has indicator variables for fine, coarse, and NPS, symptoms, height, weight, BMI, vax vars, age (all variables that were added to the df at the very end of manipulation), that the PNAS_data_full doesn't have, but could be added easily. 
 
-##
+compare(PNAS_data_full, finaldataset)
+summary(compare(PNAS_data_full, finaldataset))
+
+# In fact, these dataset observations are identical! The only differences are those related to the variables included in each df that were predicted above. 
+# There were a few minor differences in variable class that can also be changed. 
+# We can easily add those variables on to the PNAS_data_full to make a truly "full" dataframe. 
+# In fact, let's do that!
+
+# finaldataset$final.copies <- as.numeric(finaldataset$final.copies)
+
+PNAS_data_full <- PNAS_data_full %>%
+  left_join(finaldataset)
 
 #### Exploring the PNAS_data_full df and the flu_cases df a little more ####
 
-##
+## Let's do some summary analysis 
 
+table(PNAS_data_full$sample.type)
 
+# Number of subjects with at least one positive aerosol sample on at least one day of sampling
+table(PNAS_data_full$sample.type)
 
-#### Comparing the differences between the analytical datasets ####
-# Let's look at the difference between the all_data (all screened) df of 355 subjects and the all_cases df of 178 subjects
+PNAS_data_full_pos_aerosol <- PNAS_data_full %>%
+  filter(sample.type == "GII condensate NO mask" | sample.type == "Impactor 5 um NO mask") %>%
+  filter(!is.na(final.copies)) %>%
+  distinct(subject.id)
+print(nrow(PNAS_data_full_pos_aerosol))
 
-screened_to_cases <- all_data %>%
-  anti_join(all_cases)
+# Number of subjects with at least one positive fine particle aerosol sample on at least one day of sampling
+PNAS_data_full_pos_fine <- PNAS_data_full %>%
+  filter(sample.type == "GII condensate NO mask") %>%
+  filter(!is.na(final.copies)) %>%
+  distinct(subject.id)
+print(nrow(PNAS_data_full_pos_fine))
 
-screened_to_cases_sample_sampling_instance_check <- screened_to_cases %>%
-  group_by(subject.id, date.visit) %>%
-  count()
-# 192 subject sampling instances in the df
+# Number of subjects with at least one positive coarse particle aerosol sample on at least one day of sampling
+PNAS_data_full_pos_coarse <- PNAS_data_full %>%
+  filter(sample.type == "Impactor 5 um NO mask") %>%
+  filter(!is.na(final.copies)) %>%
+  distinct(subject.id)
+print(nrow(PNAS_data_full_pos_coarse))
 
-screened_to_cases_subjectID_check <- screened_to_cases %>%
-  group_by(subject.id) %>%
-  count()
-# 177 subjectID excluded (these 177 produce 192 sampling instances in the df)
+# Total number of subjects
+PNAS_data_full_subjects <- PNAS_data_full %>%
+  distinct(subject.id)
+print(nrow(PNAS_data_full_subjects))
 
-screened_to_cases_positive_subjectIDs <- screened_to_cases %>%
-  filter(Ct != '') %>%
-  group_by(subject.id) %>%
-  count()
-# Looks like there were 8 instances where there was flu positivity among those where were excluded/not enrolled.
-# We can probably check this by looking to see how many had negative assays and if we assume that only those who were part of the sensitivity analysis received a PCR test.
+# Fraction positive on at least one day
+print(nrow(PNAS_data_full_pos_aerosol)/nrow(PNAS_data_full_subjects))
 
-# Let's look at the difference between the all_cases df of 178 subjects and the flu_cases_gii_samples df of 158 subjects
+# Table with number of subjects with 1 gii instance, 2 gii instances, 3 gii instances
+gii_instances <- PNAS_data_full %>%
+  distinct(subject.id, g2.run) %>%
+  mutate(one_instance = ifelse(g2.run == 1 & g2.run != 2 & g2.run != 3, 1, 0)) %>%
+  mutate(two_instances = ifelse(g2.run == 2 & g2.run != 1 & g2.run != 3, 1, 0)) %>%
+  mutate(three_instances = ifelse(g2.run == 3 & g2.run != 1 & g2.run != 2, 1, 0))
+print(sum(gii_instances$one_instance))
+print(sum(gii_instances$two_instances))
+print(sum(gii_instances$three_instances))
 
-cases_to_flucases <- all_cases %>%
-  anti_join(flu_cases_gii_samples)
+table(gii_instances$g2.run)
 
-cases_to_flucases_sample_sampling_instance_check <- cases_to_flucases %>%
-  group_by(subject.id, date.visit) %>%
-  count()
-# 26 subject sampling instances in the df
+lapply(gii_instances, function(x) data.frame(table(x)))
 
-cases_to_flucases_subjectID_check <- cases_to_flucases %>%
-  group_by(subject.id) %>%
-  count()
-# 20 subjectID excluded (these 20 produce 26 sampling instances in the df)
+# Person-visits with negative NPS
+gii_person_visit_negative_NPS <- PNAS_data_full %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  filter(is.na(final.copies)) %>%
+  distinct(subject.id, date.visit, .keep_all = TRUE) %>%
+  select(subject.id, date.visit, type.inf)
+print(gii_person_visit_negative_NPS)
 
-cases_to_flucases_flu_positive_subjectIDs <- cases_to_flucases %>%
-  filter(Ct != '') %>%
-  group_by(subject.id) %>%
-  count()
-# only subject 47 had a ct value but it was Ct>44 and is thus considered not a true positive. 
-
-# Let's look at the difference between the flu_cases_gii_samples df of 158 subjects and the finaldataset PNAS df of 142 subjects
-
-# Because the variables in the finaldataset are not 100% same the as in the flu_cases_gii_samples df (due to fine tune tweaking and curation of the analytical df for PNAS manuscript) it may be most useful to first find a set of subjectIDs that exist in the flu_cases_gii_samples df but not in the finaldataset df.
-# Then we can go one step further to assess subjectID-sampling instances. I believe there are at least a couple of instances where one of the sampling days for a particular subject is included, while other day(s) of data are not included. 
-
-finaldataset_subjects <- finaldataset %>%
-  group_by(subject.id) %>%
-  count() %>%
-  select(subject.id)
-
-flu_cases_gii_samples_subjects <- flu_cases_gii_samples %>%
-  group_by(subject.id) %>%
-  count() %>%
-  select(subject.id)
-
-flucases_to_PNAS_subjects_allvariables <- flu_cases_gii_samples %>%
-  anti_join(finaldataset_subjects)
-# This gives 218 observations of subject-sampling instance data for the subjects not included in the final PNAS df but included in the flu_cases_gii_samples.
-
-flucases_to_PNAS_subjectID_check <- flucases_to_PNAS_subjects_allvariables %>%
-  group_by(subject.id) %>%
-  count()
-# This gives the list of 16 subjects who were not included in the PNAS df but were enrolled as cases in the study. 
-
-# Now need to add onto this list of 16 (that had all sampling instance data not included in the PNAS df), a list of the other subjects and their sampling instances 
-
-flucases_to_PNAS <- flu_cases_gii_samples %>%
-  anti_join(finaldataset, by = c("subject.id", "date.visit"))
-
-flucases_to_PNAS_sample_sampling_instance_check <- flucases_to_PNAS %>%
-  group_by(subject.id, date.visit) %>%
-  count()
-# 37 subject sampling instances in the df
-
-flucases_to_PNAS_subjectID_check <- flucases_to_PNAS %>%
-  group_by(subject.id) %>%
-  count()
-# 30 subjectID excluded (these 30 produce 37 sampling instances in the df)
-# Hmm, have to fix this - the anti_join doesn't work as well with these dfs because the variables are not all in both dfs!
-
-flucases_to_PNAS_flu_positive_subjectIDs <- flucases_to_PNAS %>%
-  filter(Ct != '') %>%
-  group_by(subject.id) %>%
-  count()
-
-
-
+# Person-visits with all negative samples
+ever_positive <- PNAS_data_full %>%
+  filter(!is.na(final.copies)) %>%
+  distinct(subject.id, date.visit)
+person_visit_negative <- PNAS_data_full %>%
+  anti_join(ever_positive) %>%
+  distinct(subject.id, date.visit)
+print(person_visit_negative)
