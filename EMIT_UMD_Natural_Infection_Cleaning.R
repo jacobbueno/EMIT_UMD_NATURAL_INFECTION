@@ -3487,7 +3487,7 @@ finaldataset$final.copies <- as.numeric(finaldataset$final.copies)
 
 finaldataset_merge <- finaldataset %>%
   select(subject.id, date.visit, sample.type, NPswab, Coarse, Fine, height_cm, weight_kg, BMI, fluvac_last2y, vax_bothyear, fluvac_10y, age) %>%
-  distinct(subject.id)
+  distinct(subject.id, .keep_all = TRUE)
 
 PNAS_data_full <- PNAS_data_full %>%
   left_join(finaldataset_merge, by = c("subject.id"))
