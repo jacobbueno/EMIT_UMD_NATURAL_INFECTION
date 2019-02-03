@@ -1,6 +1,6 @@
 # Title: EMIT_Enrollment_Summary
-# Author: Jacob Bueno de Mesquita with material from Jing Yan and Don Milton
-# Date: January 7, 2019
+# Author: Jacob Bueno de Mesquita cleaned up the script originalyl by Jing Yan and Don Milton
+# Date: January 7, February 2, 2019
 
 #### **** Using Script: Jing Yan and Dr. Milton's "Snippets analysis_1.r" **** ####
 
@@ -21,12 +21,17 @@
 
 ###
 
+#### Setting up the environment ####
+
+library(dplyr)
+library(tidyr)
+
+sessionInfo()
+
 #### READ in and work with Clinical Database ####
 
+clinical_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv"
 clinical_umd <- read.csv(clinical_in_file)
-
-# clinical_in_file was an object that was taken from reading in "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv"
-# This was already read in with the "Merge_1-3.R-update.r" script -- see above.
 
 ## Check whether there was anyone with no visit 1 who has a record for having had a g2 run ##
 
@@ -95,7 +100,7 @@ print(sum(unique(visit2_3DT2$field_subj_id) %in% unique(visit2_3DT3$field_subj_i
 # Number of all subject with a visit 2 or 3
 print(length(unique(visit2_3DT2$field_subj_id)))
 
-## Roommates ##
+#### Roommates ####
 
 # identify the roommate referal subject 
 rr <- clinical_umd %>% 
@@ -160,7 +165,7 @@ print(length(enroll$field_subj_id) - length(enroll2$field_subj_id))
 
 # Subject 69 has 2 GII tests from redcap clinical record, but only have one GII record in the GII log on redcap, need further investigation. 
 
-## More data exploration and manipulation ##
+#### More data exploration and manipulation ####
 
 # remove the screen arm from the data, leave the field_subj_id and redcap_event_name and mark n = 1 for each redcap_event_name
 tab0 <- clinical_umd %>% 
@@ -223,10 +228,8 @@ names(tab3link)[4] <- 'first_visit_date'
 
 #### READ in and work with the G2 Log Data ####
 
+g2_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv"
 g1 <- read.csv(g2_in_file)
-
-# g2_in_file was an object already read in earlier from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
-# See above for where this was already read in with material from the "merge_1-3.R-update.R" script
 
 # Sujbect 81 in GII file appear to have a collection_2_arm 1 but it actually is a one time GII subject
 sum((g1$start_dt) == "")
@@ -293,9 +296,8 @@ write.csv(m2, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_S
 
 #### READ in and work with FIELD SAMPLE DATABASE ####
 
+field_db_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv"
 a <- read.csv(field_db_in_file, as.is = T)
-
-# field_db_in_file was already read in earlier from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv'
 
 names(a)
 a1 <- a %>% 
@@ -311,11 +313,11 @@ a2 <- a1 %>%
 #### READ in and work with UMD SAMPLES DATABASE (REDCAP DATA) ####
 
 # Read in redcap_culture data
+
+sample_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv"
 b <- read.csv(sample_in_file, as.is = T)
 
-# sample_in_file is an object already read in from 'EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv'
-
-#add a new colunm named as new date which is the same with date of sample collection
+# Add a new column named as new date which is the same with date of sample collection
 b2 <- b %>% 
   mutate(newdate = as.Date(dt_visit, format = '%m/%d/%Y'))
 
@@ -338,9 +340,9 @@ sum(is.na(m1$Dates_a))
 m2 <- m1 %>% 
   filter(!grepl('.', Dates_a))
 
-# This result suggests that all the redcap culture sample IDs and sample types and enrolled data match with the field ID data ...
-# ... Only 237_6 was included in the field data base but not the redcap culture data ...
-# ... 237 is an enrolled subject for 1 time, it should not have a _6 sample
+# This result suggests that all the redcap culture sample IDs and sample types and enrolled data match with the field ID data. 
+# Only 237_6 was included in the field data base but not the redcap culture data. 
+# 237 is an enrolled subject for 1 time, it should not have a _6 sample
 # From the above code we know all the culture redcap sample ID can be found in field ID, not sure if all the field ID can be found in culture redcap
 
 m3  <- a2 %>% 
@@ -356,4 +358,5 @@ m5 <- m4 %>%
 # m5 are the samples that were included in the field_id but not included in the redcap culture
 
 # There is no output for this section - rather this is part of the data checking and exploratory analysis. 
+# It also contains some interesting roommate information. 
 # A report can be generated from the objects in this piece of the script if desired. 
