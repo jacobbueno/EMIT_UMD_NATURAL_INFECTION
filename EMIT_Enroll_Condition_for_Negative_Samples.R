@@ -1,9 +1,9 @@
 # Title: enroll condition for negative samples
 # Author: Jing Yan and Donald Milton
-# Summary: I'm moving this script to the git lab repository and also doing some minor cleaning
-# Enabling the clean reproduction of this script
+
+# Summary: I'm moving this script to the git lab repository and also doing some minor cleaning to enabling the clean reproduction of this script.
 # Signed: Jacob Bueno de Mesquita
-# Data: January 8, 2019
+# Date: January 8, February 2, 2019
 
 #########################
 # Name: enroll condition for negative samples
@@ -18,6 +18,8 @@
 
 library(dplyr)
 library(tidyr)
+
+sessionInfo()
 
 #_____________
 # Setup all I/O
@@ -37,14 +39,17 @@ flu.types <- select(flu.types, subject.id, type.inf)
 samples.types <- left_join(samples, flu.types, by = "subject.id")
 
 # cat("\n Rows samples:", nrow(samples), " Rows flu.types:", nrow(flu.types), " Rows samples.types:", nrow(samples.types))
-# 
-# subjects.types <- distinct(samples.types,subject.id)
+
+subjects.types <- samples.types %>%
+  distinct(subject.id)
+
 # print(with(subjects.types,(ftable(addmargins(table(enrolled,type.inf,exclude = c()))))))
 
-neg.samples <- filter(samples.types, type.inf == 'Negative' | type.inf == 'bad assay')
+neg.samples <- samples.types %>%
+  filter(type.inf == 'Negative' | type.inf == 'bad assay')
 
 # cat("\n With a negative sample type (or bad assay), the number of subjects have a screen visit 2 is ",
-   # nrow(filter(neg.samples, visit.num == 2)), "\n")
+print(nrow(filter(neg.samples, visit.num == 2)))
 
 # With a negative sample type (or bad assay), the number of subjects have a screen visit 2 is...
 nrow(filter(neg.samples, visit.num == 2))
@@ -65,14 +70,12 @@ neg.pcr.pos.passage <- neg.samples %>%
 neg.pcr.pos.focus <- neg.samples %>% 
   filter(focus.ct > 0)
 
-pos.culture <- full_join(neg.pcr.pos.passage, neg.pcr.pos.focus, by = c("subject.id","type.inf","date.visit",
-                                                                 "sample.id", "sample.type", "visit.num",     
-                                                                 "passpos", "g2.run","validp","focus.ct", 
-                                                                 "enrolled"))
+pos.culture <- neg.pcr.pos.passage %>%
+  full_join(neg.pcr.pos.focus, by = c("subject.id", "type.inf", "date.visit", "sample.id", "sample.type", "visit.num",                                          "passpos", "g2.run", "validp", "focus.ct", "enrolled"))
+
 pos.culture <- pos.culture %>%
   arrange(subject.id) %>% 
-  select(subject.id, date.visit, sample.id, sample.type, g2.run, 
-                       visit.num, passpos, validp, focus.ct, enrolled)
+  select(subject.id, date.visit, sample.id, sample.type, g2.run, visit.num, passpos, validp, focus.ct, enrolled)
 
 # cat("\n subjects with negative sample type but positive culture results. \n")
 print(pos.culture)
