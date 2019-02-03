@@ -1,7 +1,7 @@
 # EMIT UMD Natural Infection Study Data Curation - cleaning raw data to produce cleaned spreadsheets
 # Program Objective: Take the datasets identified as critical, clean them, and later merge to form curated one or more curated datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
-# Date: December 14, 2018 - January 2019
+# Date: December 14, 2018 - February 2019
 # Summary:
 
 #### Load required packages and set working directory ####
@@ -2865,6 +2865,7 @@ finaldata142 <- finaldata4 %>%
 finaldata142_subjectID_check <- finaldata142 %>%
   group_by(subject.id) %>%
   count()
+print(nrow(finaldata142_subjectID_check))
 
 saveRDS(finaldata142, "Curated Data/Cleaned Data/finaldata142.RDS")                         
 
@@ -2981,14 +2982,17 @@ finaldataset_count <- finaldataset %>%
   arrange(sample.type, subject.id, date.visit, Experiment) %>%
   group_by(sample.type, subject.id, date.visit, Experiment, type.inf) %>%
   summarise(count = n())
+print(nrow(finaldataset_count))
 
 finaldataset_subjectID_check <- finaldataset %>%
   group_by(subject.id) %>%
   count()
+print(nrow(finaldataset_subjectID_check))
 
 finaldataset_sampleID_check <- finaldataset %>%
   group_by(sample.id) %>%
   count()
+print(nrow(finaldataset_sampleID_check))
 
 # I figured out why there are only single PCR replicate results (singlicate as opposed to duplicate) - it’s because these were part of the subtyping assays and there was only enough material to run the CDC panel in singlicate (or a second extraction would have been required). For this reason, the 1st day visit NP swabs were run in singlicate (many of them). Others got put on par assays later on and have duplicates. This explains the lack of consistency in the number of pcr results reported for first visit NP swabs here. We will move forward with the dataframe that we have generated. 
 
@@ -3114,6 +3118,7 @@ allPCRfinal <- rbind(allPCR.A, allPCR.B) %>%
 allPCRfinal_subjectID_check <- allPCRfinal %>%
   group_by(subject.id) %>%
   count()
+print(nrow(allPCRfinal_subjectID_check))
 # 207 subject IDs have some sort of pcr data
 
 # Now get the enrolled df ready to merge
@@ -3122,6 +3127,7 @@ enrolled_type.inf <- enrolled
 # Now get the daypickfinal_full df ready to merge
 daypickfinal_dpo <- daypickfinal_full %>%
   select(subject.id, date.visit, dpo)
+print(nrow(daypickfinal_dpo))
 # Note that the date_on_sx variable in the samples.cc df is more comprehensive than the one from daypickfinal_dpo because it includes data on more subjectIDs.
 # samples.cc contains 473 sampling instances, while daypickfinal_full contains 440 sampling instances.
 
@@ -3130,15 +3136,18 @@ samples.cc_date_on_sx_subjectID_check <- samples.cc %>%
   filter(!is.na(date_on_sx)) %>%
   group_by(subject.id) %>%
   count()
+print(nrow(samples.cc_date_on_sx_subjectID_check))
 # We see that the samples.cc df has date_on_sx for 331 subjects (same as for the daypickfinal_full df). 
 # Now let's check how many sampling instances the samples.cc has
 samples.cc_sampling_instances_check <- samples.cc %>%
   distinct(subject.id, date.visit)
+print(nrow(samples.cc_sampling_instances_check))
 # 473 sampling instances. But what about if we exclude to only those sampling instances that are associated with g2 visits?
 
 samples.cc_gii_sampling_instances_check <- samples.cc %>%
   filter(g2.run !=0) %>%
   distinct(subject.id, date.visit)
+print(nrow(samples.cc_gii_sampling_instances_check))
 # There are 276 sampling instances. 
 
 # Now get the clinical_umd_body_temp df ready to merge
@@ -3147,20 +3156,25 @@ clinical_umd_body_temp <- clinical_umd_1
 
 # Now get the clinical_umd_symptoms df ready to merge
 clinical_umd_symptoms <- clinical_umd_2
+print(nrow(clinical_umd_symptoms))
 
 # Now get the clinical_umd_asthma df ready to merge
 clinical_umd_asthma <- clinical_umd_3
+print(nrow(clinical_umd_asthma))
 
 # Now get the g2 log ready to merge
 g2_log1 # Already in good form
+print(nrow(g2_log1))
 
 # Now get the vacine_smoker_antiviral_sex df ready to merge
 VSAS # Already in good form
+print(nrow(VSAS))
 
 # Oddly the body temp variable from the clinical_umd object appears to be more complete than the one in the samples.cc df
 # Thus we will elimnate the body_temp variable from samples.cc and use the one from clinical_umd_body_temp
 samples.cc <- samples.cc %>%
   select(-body_temp)
+print(nrow(samples.cc))
 
 ## Now can begin to bind all of the pieces together
 all_data <- samples.cc %>%
@@ -3173,15 +3187,18 @@ all_data <- samples.cc %>%
   left_join(g2_log1, by = c("subject.id", "date.visit")) %>%
   left_join(VSAS, by = "subject.id") %>%
   arrange(subject.id, date.visit, type, sample.type, final.copies)
+print(nrow(all_data))
 
 # Check number of subjectIDs in all_data df
 all_data_subjectID_check <- all_data %>%
   group_by(subject.id) %>%
   count()
+print(nrow(all_data_subjectID_check))
 
 all_data_gii_sample_instance_check <- all_data %>%
-  #filter(g2.run == 1 | g2.run == 2 | g2.run == 3) %>%
-  distinct(subject.id, date.visit) 
+  filter(g2.run == 1 | g2.run == 2 | g2.run == 3) %>%
+  distinct(subject.id, date.visit)
+print(nrow(all_data_gii_sample_instance_check))
 # Hmm, I'm getting 276 entries here but we should have 278 according to PNAS SI Table S1. 
 # Looking back through the G2 log and the rest of the data, I keep seeing 276 as the correct number here.
 # I'm not able to replicate the 278 number here. 
@@ -3195,6 +3212,7 @@ write.csv(all_data, "Curated Data/Analytical Datasets/all_screened.csv")
 all_cases <- enrolled_type.inf %>%
   select(subject.id) %>%
   inner_join(all_data)
+print(nrow(all_cases))
   
 write.csv(all_cases, "Curated Data/Analytical Datasets/all_cases.csv")
 
@@ -3202,15 +3220,18 @@ all_cases_gii_samples <- enrolled_type.inf %>%
   select(subject.id) %>%
   inner_join(all_data) %>%
   filter(g2.run != 0)
+print(nrow(all_cases_gii_samples))
 
 # Check number of subjectIDs in all_cases df
 all_cases_subjectID_check <- all_cases_gii_samples %>%
   group_by(subject.id) %>%
   count()
+print(nrow(all_cases_subjectID_check))
 # There are 178 subjects
 
 all_cases_gii_sample_instance_check <- all_cases_gii_samples %>%
   distinct(subject.id, date.visit)
+print(nrow(all_cases_gii_sample_instance_check))
 # There are 276 gii sampling instances on these 178 subjects. 
 
 # Write out the all_cases df
@@ -3221,6 +3242,7 @@ write.csv(all_cases_gii_samples, "Curated Data/Analytical Datasets/all_cases_gii
 flu_cases <- subtype %>%
   select(subject.id) %>%
   inner_join(all_data)
+print(nrow(flu_cases))
 
 write.csv(flu_cases, "Curated Data/Analytical Datasets/flu_cases.csv")
 
@@ -3229,16 +3251,19 @@ flu_cases_gii_samples <- subtype %>%
   select(subject.id) %>%
   inner_join(all_data)  %>%
   filter(g2.run != 0)
+print(nrow(flu_cases_gii_samples))
   
 # Check number of subjectIDs in all_cases df
 flu_cases_gii_samples_subjectID_check <- flu_cases_gii_samples %>%
   group_by(subject.id) %>%
   count()
+print(nrow(flu_cases_gii_samples_subjectID_check))
 # 158 subjectIDs
 
 # Check the number of gii sampling instances
 flu_cases_gii_samples_gii_sampling_instances_check <- flu_cases_gii_samples %>%
   distinct(subject.id, date.visit)
+print(nrow(flu_cases_gii_samples_gii_sampling_instances_check))
 # 250 gii sampling instances for the 150 subjects
 
 # Let's examine this set of sampling instances that was just eliminated when we went from all_cases to flu_cases_gii_samples
@@ -3253,12 +3278,14 @@ all_cases_to_flu_cases_gii_samples_pcr <- all_cases_to_flu_cases_gii_samples %>%
 
 all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check <- all_cases_to_flu_cases_gii_samples %>%
   distinct(subject.id, date.visit)
+print(nrow(all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check))
 # There were 26 instances here that were removed due to "not confirmed by PCR"
 # Were these 26 instances just among the 20 subjects excluded or were there others gii instances excluded from some subjects outside of the grouop of 20?
 # The 26 should just be from the 20 subjects excluded but let's double check
 all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check_subID <- all_cases_to_flu_cases_gii_samples %>%
   distinct(subject.id, date.visit) %>%
   distinct(subject.id)
+print(nrow(all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check_subID))
 # Sure enough, the 26 gii instances came from the 20 subjects excluded.
 
 # Write out the flu_cases_gii_samples df
@@ -3409,7 +3436,7 @@ summary(compare(PNAS_data_full, finaldataset))
 # We can easily add those variables on to the PNAS_data_full to make a truly "full" dataframe. 
 # In fact, let's do that!
 
-# finaldataset$final.copies <- as.numeric(finaldataset$final.copies)
+finaldataset$final.copies <- as.numeric(finaldataset$final.copies)
 
 PNAS_data_full <- PNAS_data_full %>%
   left_join(finaldataset)
