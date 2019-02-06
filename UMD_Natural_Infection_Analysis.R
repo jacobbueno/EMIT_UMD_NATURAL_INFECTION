@@ -1,7 +1,7 @@
 # EMIT UMD Natural Infection Analysis
 # Program Objective: Run analysis on EMIT Natural Infection datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
-# Date: December 14, 2018 - January 2019
+# Date: December 14, 2018 - February 2019
 # Summary: While most of the analysis for the EMIT_UMD study was done in SAS (especially that as part of the PNAS manuscript), here are some others analyses that we will include as well. 
 
 #### Load required packages and set working directory ####
