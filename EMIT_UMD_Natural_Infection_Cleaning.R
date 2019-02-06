@@ -1494,7 +1494,7 @@ pcr_A <- rbind(pcr_A1, pcr_A2, pcr_A3) %>%
   ungroup()
 pcr_A <- pcr_A %>% 
   mutate(type = 'A') %>% 
-  mutate(copy.num = copies.in*80)
+  mutate(copy.num = copies.in*250)
 
 # Number of rows of total (gii and 2rd or 3rd NP samples) influenza A PCR data
 nrow(pcr_A)
@@ -1586,7 +1586,7 @@ pcr_B <- pcr_B %>%
   mutate(type = 'B')
 pcr_B <- pcr_B[order(pcr_B$Well.Name), ]
 pcr_B <- pcr_B %>%
-  mutate(copy.num = copies.in*411)
+  mutate(copy.num = copies.in*272)
 
 # Number of rows of total (gii and 2rd or 3rd NP samples) influenza B PCR data
 nrow(pcr_B)
@@ -2273,7 +2273,7 @@ npA <- npA %>%
 npA[npA == "No Ct"] <- ''
 npA$copies.in <- as.numeric(npA$copies.in)
 npA <- npA %>%
-  mutate(copy.num = copies.in*100*80) %>%
+  mutate(copy.num = copies.in*100*250) %>%
   arrange(subject.id)
 npA$result.type <- 'A'
 npA <- npA %>%
@@ -2338,7 +2338,7 @@ npB <- npB %>%
 npB[npB == "No Ct"] <- ''
 npB$copies.in <- as.numeric(npB$copies.in)
 npB <- npB %>% 
-  mutate(copy.num = copies.in*100*411) %>%
+  mutate(copy.num = copies.in*100*272) %>%
   arrange(subject.id)
 npB$result.type <-'B'
 npB <- npB %>%
@@ -3133,6 +3133,7 @@ allPCR <- allpcrA %>%
 ## DATA EDITING (dilution factors different for a few samples) ##
 # Flagged samples all NP swabs, dilution factor is 50
 # 66_7 120_7 184_8 188_7 189_7 192_7 196_7 262_7 277_7 284_12 284_7 296_12 296_7
+# Note that none of these samples were first visit NPS samples, so this data edit applied to only the data from non-first visit NPS. 
 
 allPCR1 <- allPCR %>% 
   filter(sample.id == '66_7' | sample.id == '120_7' | sample.id == '184_8' | sample.id == '188_7' | sample.id == '189_7' | sample.id == '192_7' | 
@@ -3186,6 +3187,9 @@ pcr_full_subjectID_check <- pcr_full %>%
   count()
 print(nrow(pcr_full_subjectID_check))
 # 207 subjects
+
+pcr_full_merge <- pcr_full %>%
+  select(subject.id, sample.id, type, Experiment, final.copies)
 
 ## Now, get the samples.cc variable ready to merge.
 
@@ -3246,14 +3250,11 @@ samples.cc <- samples.cc %>%
   select(-body_temp)
 print(nrow(samples.cc))
 
-allpcr_merge <- allpcr %>%
-  select(subject.id, sample.id, sample.type, type, type.inf, Experiment, final.copies)
-
 ## Now can begin to bind all of the pieces together
 all_data <- samples.cc %>%
   left_join(enrolled_type.inf, by = "subject.id") %>%
   left_join(daypickfinal_dpo, by = c("subject.id", "date.visit")) %>%
-  left_join(allpcr_merge, by = c("subject.id", "sample.id", "sample.type", "type.inf")) %>%
+  left_join(pcr_full_merge, by = c("subject.id", "sample.id")) %>%
   left_join(clinical_umd_body_temp, by = c("subject.id", "date.visit")) %>% 
   left_join(clinical_umd_symptoms, by = c("subject.id", "date.visit")) %>%
   left_join(clinical_umd_asthma, by = "subject.id") %>%
