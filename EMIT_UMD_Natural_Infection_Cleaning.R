@@ -549,6 +549,7 @@ print(head(tbl_df(field.db1)))
 field.db1_subjectID_check <- field.db1 %>%
   group_by(field_subj_id) %>%
   count()
+print(nrow(field.db1_subjectID_check))
 # Data for 355 individuals - all samples collected - including clinic and gii
 
 #### MERGE FIELD SAMPLE DATABASE WITH COMBINED CLINICAL DATABASE & G2 LOG ####
@@ -618,6 +619,7 @@ print(head(tbl_df(merge2)))
 merge2_subjectID_check <- merge2 %>%
   group_by(field_subj_id) %>%
   count()
+print(nrow(merge2_subjectID_check))
 # Yes, this seems to be correct. 
 
 #### READ in and work with the UMD SAMPLES DATABASE (REDCAP DATA) ####
@@ -827,6 +829,7 @@ collection_subjectID_check <- collection %>%
   group_by(field_subj_id) %>%
   filter(!is.na(field_subj_id)) %>%
   count()
+print(nrow(collection_subjectID_check))
 # All 355 are accounted for here
 
 # How many subjectIDs in the passage df?
@@ -835,6 +838,7 @@ passage_subjectID_check <- passage %>%
   group_by(subject_id) %>%
   filter(!is.na(subject_id)) %>%
   count()
+print(nrow(passage_subjectID_check))
 # 158 are included in the passage data - not sure which 158 these are
 
 # How many subjectIDs in the focus df?
@@ -843,6 +847,7 @@ focus_subjectID_check <- focus %>%
   group_by(subject_id) %>%
   filter(!is.na(subject_id)) %>%
   count()
+print(nrow(focus_subjectID_check))
 # 153 are included in the passage data - not sure which 153 these are
 
 culture_results <- merge(collection, passage, by = "sample_id", all = T)
@@ -1124,6 +1129,7 @@ samples.cc_subjectID_check <- samples.cc %>%
   group_by(subject.id) %>%
   filter(!is.na(subject.id)) %>%
   count()
+print(nrow(samples.cc_subjectID_check))
 # There are 355 subjectIDs here = full set of screened participants
 
 #### Write out EMIT_samples.cc.RDS file from merge of Clin DB + G2 Log + Field Sample DB ####
@@ -1261,7 +1267,7 @@ fluAII <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 GII and repeat 
 fluAIII <- read.csv('UMD_Raw_Data/PCR Data/PCR results/2016.08.05 GII and repeat NP swabs FluA part III.csv', as.is = T)
 
 fluAI <- rbind(fluAI1, fluAI2) %>% 
-  ungroup
+  ungroup()
 fluAI <- fluAI %>% 
   filter(Ct..dRn. != 'Reference')
 fluAI$Ct..dRn. <- as.numeric(fluAI$Ct..dRn.)
@@ -1283,18 +1289,18 @@ fluAIII1 <- fluAIII %>%
   select(Experiment, Well.Name, Ct..dRn.)
 
 fluA1 <- rbind(fluAI, fluAII1, fluAIII1) %>%
-  ungroup
+  ungroup()
 
 fluA1low <- fluA1 %>%
   filter(grepl('_Low', Well.Name))
 fluA1low$dif <- fluA1low$Ct..dRn.-ctLAII
 
 fluA1high <- fluA1 %>%
-  filter(grepl('_High',Well.Name))
+  filter(grepl('_High', Well.Name))
 fluA1high$dif <- fluA1high$Ct..dRn.-ctHAII
 
 fluA2 <- rbind(fluA1low, fluA1high) %>% 
-  ungroup
+  ungroup()
 fluA2 <- fluA2[order(fluA2$Experiment), ]
 fluA2 <- fluA2 %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
@@ -1401,7 +1407,7 @@ pcr_A1b <- read.csv('UMD_Raw_Data/PCR data/PCR results/2016.08.08 GII and repeat
 
 # Bind the two flu A files together
 pcr_A1 <- rbind(pcr_A1a, pcr_A1b) %>%
-  ungroup
+  ungroup()
 
 names(pcr_A1)
 
@@ -1485,7 +1491,7 @@ pcr_A3 <- pcr_A3[order(pcr_A3$Well.Name), ]
 #### Bind the flu A data ####
 
 pcr_A <- rbind(pcr_A1, pcr_A2, pcr_A3) %>% 
-  ungroup
+  ungroup()
 pcr_A <- pcr_A %>% 
   mutate(type = 'A') %>% 
   mutate(copy.num = copies.in*80)
@@ -1495,8 +1501,10 @@ nrow(pcr_A)
 # Number of columns of total (gii and 2rd or 3rd NP samples) influenza A PCR data
 ncol(pcr_A)
 
-pcr_A <- pcr_A[order(pcr_A$subject.id), ]
+pcr_A$subject.id <- as.numeric(pcr_A$subject.id)
+
 pcr_A <- pcr_A %>%
+  arrange(subject.id) %>%
   mutate(date = gsub('^[0-9]*.', '', Experiment))
 
 pcr_Afinal <- pcr_A %>%
@@ -1612,7 +1620,7 @@ total.pcr$Well.Name[total.pcr$Well.Name == '292_11' & total.pcr$Ct..dRn. == 30.7
 total.pcr <- total.pcr %>% 
   filter(!grepl('sd', Well.Name))
 
-# Convert the subject.id to numeric class and order from least to highest
+# Convert the subject.id to numeric class and order from least to highest subject ID
 total.pcr$subject.id <- as.numeric(total.pcr$subject.id)
 total.pcr <- total.pcr %>%
   arrange(subject.id)
@@ -1908,6 +1916,7 @@ includetype1_subjectID_check <- includetype1 %>%
   group_by(subject.id) %>%
   filter(!is.na(subject.id)) %>%
   count()
+print(nrow(includetype1_subjectID_check))
 # Those 407 observations are made of data from 29 individuals
 # It looks like many of these "subtype negative" but positive pcr individuals will later get their subtype status updated based on the pcr data.
 
@@ -1921,6 +1930,7 @@ sampletype_subjectID_check <- sampletype %>%
   group_by(subject.id) %>%
   filter(!is.na(subject.id)) %>%
   count()
+print(nrow(sampletype_subjectID_check))
 # There were 355 subject IDs here that produce the 1938 observations. 
 
 # It looks like there are some samples where the sample type is missing - need to fill these in!
@@ -1937,7 +1947,8 @@ negative <- includetype %>%
   filter(type.inf == 'Negative' & Ct..dRn. > 0) %>% 
   select(Experiment, sample.id, Ct..dRn., subject.id, type, type.inf) %>%
   inner_join(sampletype, by = c("subject.id", "sample.id"))
-# This gives 27 observations from 9 subject IDs
+print(nrow(negative))
+# This gives 27 observations from 9 subject IDs (hmm, really?)
 # In this instance the inner_join with the sampletype df does not change the resulting "negative" df - still 27 observations from 9 subject IDs
 
 # Subjects with negative sample type but positive pcr results from either GII sample or 2rd/3rd NP swab.
@@ -2054,6 +2065,7 @@ includetypepositive_subjectID_check <- includetypepostive %>%
   group_by(subject.id) %>%
   filter(!is.na(subject.id)) %>%
   count()
+print(nrow(includetypepositive_subjectID_check))
 # There are 158 subjectIDs represented in this includetypepostive df
 
 # Let's check to see if there are any intances where the type is B but the subtype (type.inf variable) is not B
@@ -2138,7 +2150,7 @@ allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>%
 allPCR.A <- allPCRtotal %>% 
   filter(typeA == 'A') %>%
   select(-CtB, -virus.copiesB, -typeB, -final.copiesB) %>%
-  rename(Ct = CtA,virus.copies = virus.copiesA, type = typeA, final.copies = final.copiesA)
+  rename(Ct = CtA, virus.copies = virus.copiesA, type = typeA, final.copies = final.copiesA)
 
 allPCR.B <- allPCRtotal %>% 
   filter(typeB == 'B') %>%
@@ -2152,6 +2164,7 @@ allPCRfinal <- rbind(allPCR.A, allPCR.B) %>%
 allPCRfinal_subjectID_check <- allPCRfinal %>%
   group_by(subject.id) %>%
   count()
+print(nrow(allPCRfinal_subjectID_check))
 # Data exists here for the 158 positive enrolled cases
 
 saveRDS(allPCRfinal, "Curated Data/Cleaned Data/pcr data for gii and 2nd&3rd np.RDS")
@@ -2478,7 +2491,7 @@ nppcr1 <- readRDS("Curated Data/Cleaned Data/EMIT_np_quantity.RDS")
 
 nppcr1 <- nppcr1 %>% 
   select(-Ct, -copies.in, -copy.num, -date, -cfactor) %>% 
-  rename(final.copies = virus.copies)
+  rename(final.copies = virus.copies) # This seems to be incorrect. To get from virus.copies to final.copies one must multiply virus.copies by the dilution factor. For NP swabs the dilution factor was 100 (exept for a few NPS where 100ul instead of 50 ul was used to extract, in which case the dilution factor was 50).
 
 # Merge the preceding 2 dfs
 allpcr <- rbind(pcr1, nppcr1) %>% 
@@ -2488,6 +2501,7 @@ allpcr <- rbind(pcr1, nppcr1) %>%
 allpcr_subjectID_check <- allpcr %>%
   group_by(subject.id) %>%
   count()
+print(nrow(allpcr_subjectID_check))
 
 # 114_1, 127_1, 335_1 (These three subjects were enrolled on the second visit, these three samples are from their first screen visit) 
 # I presume we are removing these because they don't have aerosol samples on their first day of sample collection, while they do have NPS data?
@@ -2498,8 +2512,9 @@ allpcr <- allpcr[!(allpcr$sample.id == "114_1"| allpcr$sample.id == "127_1" | al
 allpcr_subjectID_check <- allpcr %>%
   group_by(subject.id) %>%
   count()
+print(nrow(allpcr_subjectID_check))
 
-# I'm confused why the data for 114, 127, and 335 was simply removed for the first visit, but not the subsequent visits - wasn't the point of removing this data to eliminate the full pcr data for these subjects, because they don't have aerosol data on the first day of study where they do have NPS data? 
+# I'm confused why the data for 114, 127, and 335 was simply removed for the first visit, but not the subsequent visits - wasn't the point of removing this data to eliminate the full pcr data for these subjects, because they don't have aerosol data on the first day of study where they do have NPS data? This is because they had data for dpo = 0 so that dpo = 0 visit was removed, while other data that was for dpo=1 or dpo=2 or dpo=3 was kept.
 
 ## Read EMIT_samples.cc.RDS
 all <- readRDS("Curated Data/Cleaned Data/EMIT_samples.cc.RDS")
@@ -2796,7 +2811,8 @@ comfirmcases2_subjectID_check <- comfirmcases2 %>%
 #   select(-date_on_sx)
 # pcr_body_temp_symptoms$date_on_sx <- as.Date(pcr_body_temp_symptoms$date_on_sx)
 
-finaldata <- inner_join(withdpo, comfirmcases2, by = c("sample.id", "subject.id", "type.inf", "date.visit")) %>%
+finaldata <- withdpo %>%
+  inner_join(comfirmcases2, by = c("sample.id", "subject.id", "type.inf", "date.visit")) %>%
   select(-date_on_sx.y) %>%
   mutate(date_on_sx = date_on_sx.x) %>%
   select(-date_on_sx.x)
@@ -2805,6 +2821,7 @@ finaldata <- inner_join(withdpo, comfirmcases2, by = c("sample.id", "subject.id"
 finaldata_subjectID_check <- finaldata %>%
   group_by(subject.id) %>%
   count()
+print(nrow(finaldata_subjectID_check))
 
 # finaldata <- inner_join(withdpo, pcr_body_temp_symptoms, by = c("subject.id", "date.visit", "type", "type.inf", "sample.type", "final.copies", "Experiment"))
 
@@ -2985,11 +3002,13 @@ npsubgroup$Coarse <- 0
 npsubgroup$Fine <- 0
 
 finaldataset <- rbind(finesubgroup, npsubgroup, coarsesubgroup) %>% 
-  ungroup %>%
+  ungroup 
+finaldataset$final.copies <- as.numeric(finaldataset$final.copies)
+finaldataset <- finaldataset %>%
   arrange(subject.id, date.visit, type, sample.type, final.copies)
 
 # finaldataset <- finaldataset[order(finaldataset$subject.id,finaldataset$dpo), ]
-finaldataset$final.copies[is.na(finaldataset$final.copies)] <- '.'
+# finaldataset$final.copies[is.na(finaldataset$final.copies)] <- '.'
 
 # Need to add some manipulation to the df right here to replicate what Jing produced for final input to the SAS program
 
@@ -3045,7 +3064,8 @@ finaldataset <- finaldataset %>%
   select(-date.visit.y) %>%
   rename(date.visit = date.visit.x) %>%
   filter(subject.id != 52) %>% # It was decided by the lab that subject 52 was a false positives and should be removed
-  filter(subject.id != 58) # It was decided by the lab that subject 58 was a false positives and should be removed
+  filter(subject.id != 58) %>% # It was decided by the lab that subject 58 was a false positives and should be removed
+  arrange(subject.id, date.visit, type, sample.type, Experiment, final.copies)
 
 finaldataset_subjectID_check <- finaldataset %>%
   group_by(subject.id) %>%
@@ -3069,36 +3089,37 @@ print(nrow(finaldataset_missing_fluvac_last2y))
 # Need to merge together the pcr data into a definitive set called allPCRfinal
 npfirst1 <- npfirst %>%
   select(subject.id, sample.id, type, Experiment, Ct, cfactor, virus.copies) %>%
-  rename(Ct..dRn. = Ct)
+  mutate(final.copies = virus.copies) %>%
+  ungroup()
+# The difference between copies.in and copy.num in the npfirst object is a factor of 8,000 for flu A assays and 41,100 for flu B assays.
+# If we break down these factors of 8,000 (for flu A) and 41,100 (for flu B) we see that it is probably a combination of what Jing used for the conversion factor from virus particles and RNA copies (80 for flu A and 411 for flu B although it should be 250 for flu A and 272 for flu B), and the dilution factor (100 for NP swabs, except for a few where 100ul instead of 50ul was used to extract)
+# So the virus.copies variable is actually the finalized pcr variable and all we needed to do in the above step was rename virus.copies as final.copies.
+# However, this whole process is under review because the conversion factors between virus particles and RNA copies are not what we believe that they should be. 
+
 total.pcr1 <- total.pcr %>%
   select(subject.id, Well.Name, type, Experiment, Ct..dRn., cfactor, virus.copies) %>%
   rename(sample.id = Well.Name)
+# Unlike the first visit NP swab data discussed above in the npfirst object, the total.pcr object has undergone a different data manipulation process with respect to applying calibration factors.
+# For total.pcr, the copies.in variable was multiplied by the RNA copies to virus particle conversion factors of 80 (for flu A) and 411 (for flu B) in order to get out copy.num (note - we are reviewing this because we believe that the conversion factors should really be 250 and 272 for flu A and B, respectively). Then, copy.num was multiplied by the pcr assay calibration factor to get virus.copies. Unlike in the NP swab first visit data where the dilution factor was applied as part of the process of getting from copies.in to copy.num, with the aerosols and post first visit NP swabs, the dilution factor has not yet been applied and, thus, the following code is written to get from virus.copies to a final.copies variable that has the dilution factor applied to it. 
+
+## Need the below code (copied from above) to manipulate the pcr data from the total.pcr object in order to apply the dilution factors for the aerosol data and NP swabs that were run on visits 2 or 3 (not first visit NPS).
 
 samples.cc_type <- samples.cc %>%
   select(sample.id, sample.type)
 
-pcr_full <- rbind(npfirst1, total.pcr1) %>%
+total.pcr1 <- total.pcr1 %>%
   left_join(enrolled, by = "subject.id") %>%
   left_join(samples.cc_type, by = "sample.id") %>%
   ungroup()
 
-pcr_full_subjectID_check <- pcr_full %>%
-  group_by(subject.id) %>%
-  count()
-print(nrow(pcr_full_subjectID_check))
-# 207 subjects
-
-## Need the below code (copied from above) to manipulate the pcr data 
-# Instead of using includetypepostiiveupdate - will work from the combined npfirst and total.pcr file called pcr_full
-
 # Pick out all the PCR with A assay results
-allpcrA <- pcr_full %>% 
+allpcrA <- total.pcr1 %>% 
   filter(type == 'A') %>%
   rename(virus.copiesA = virus.copies, typeA = type) %>%
   rename(CtA = Ct..dRn.)
 
 # Pick out all the PCR with B assay results
-allpcrB <- pcr_full %>% 
+allpcrB <- total.pcr1 %>% 
   filter(type == 'B') %>%
   rename(virus.copiesB = virus.copies, typeB = type) %>%
   rename(CtB = Ct..dRn.)
@@ -3138,7 +3159,7 @@ allPCRtotal <- rbind(allPCR3, allPCR4, allPCR5) %>%
 allPCR.A <- allPCRtotal %>% 
   filter(typeA == 'A') %>%
   select(-CtB, -virus.copiesB, -typeB, -final.copiesB) %>%
-  rename(Ct = CtA,virus.copies = virus.copiesA, type = typeA, final.copies = final.copiesA)
+  rename(Ct = CtA, virus.copies = virus.copiesA, type = typeA, final.copies = final.copiesA)
 
 allPCR.B <- allPCRtotal %>% 
   filter(typeB == 'B') %>%
@@ -3154,17 +3175,19 @@ allPCRfinal_subjectID_check <- allPCRfinal %>%
   group_by(subject.id) %>%
   count()
 print(nrow(allPCRfinal_subjectID_check))
-# 207 subject IDs have some sort of pcr data
+# 202 subject IDs have some sort of pcr data for aerosols or post day 1 NPS
 
-# Now get the enrolled df ready to merge
-enrolled_type.inf <- enrolled
+## Now, bind the allPCRfinal and npfirst1 objects together
 
-# Now get the daypickfinal_full df ready to merge
-daypickfinal_dpo <- daypickfinal_full %>%
-  select(subject.id, date.visit, dpo)
-print(nrow(daypickfinal_dpo))
-# Note that the date_on_sx variable in the samples.cc df is more comprehensive than the one from daypickfinal_dpo because it includes data on more subjectIDs.
-# samples.cc contains 473 sampling instances, while daypickfinal_full contains 440 sampling instances.
+pcr_full <- rbind(allPCRfinal, npfirst1)
+
+pcr_full_subjectID_check <- pcr_full %>%
+  group_by(subject.id) %>%
+  count()
+print(nrow(pcr_full_subjectID_check))
+# 207 subjects
+
+## Now, get the samples.cc variable ready to merge.
 
 samples.cc_date_on_sx_subjectID_check <- samples.cc %>%
   select(subject.id, sample.id, date.visit, date_on_sx) %>%
@@ -3173,19 +3196,30 @@ samples.cc_date_on_sx_subjectID_check <- samples.cc %>%
   count()
 print(nrow(samples.cc_date_on_sx_subjectID_check))
 # We see that the samples.cc df has date_on_sx for 331 subjects (same as for the daypickfinal_full df). 
+
 # Now let's check how many sampling instances the samples.cc has
 samples.cc_sampling_instances_check <- samples.cc %>%
   distinct(subject.id, date.visit)
 print(nrow(samples.cc_sampling_instances_check))
 # 473 sampling instances. But what about if we exclude to only those sampling instances that are associated with g2 visits?
-
 samples.cc_gii_sampling_instances_check <- samples.cc %>%
   filter(g2.run != 0) %>%
   distinct(subject.id, date.visit)
 print(nrow(samples.cc_gii_sampling_instances_check))
 # There are 276 sampling instances. 
 
-# Now get the clinical_umd_body_temp df ready to merge
+## Now get the enrolled df ready to merge
+enrolled_type.inf <- enrolled
+print(nrow(enrolled_type.inf))
+
+## Now get the daypickfinal_full df ready to merge
+daypickfinal_dpo <- daypickfinal_full %>%
+  select(subject.id, date.visit, dpo)
+print(nrow(daypickfinal_dpo))
+# Note that the date_on_sx variable in the samples.cc df is more comprehensive than the one from daypickfinal_dpo because it includes data on more subjectIDs.
+# samples.cc contains 473 sampling instances, while daypickfinal_full contains 440 sampling instances.
+
+## Now get the clinical_umd_body_temp df ready to merge
 clinical_umd_body_temp <- clinical_umd_1 
 print(nrow(clinical_umd_body_temp))
 # Oddly enough, the clinical_umd_1 df is actually more comprehensive than the body_temp variable from the samples.cc df (this could be due to the way merges were done in the original script where samples.cc was created - this script is embedded in the current script now)
@@ -3212,11 +3246,14 @@ samples.cc <- samples.cc %>%
   select(-body_temp)
 print(nrow(samples.cc))
 
+allpcr_merge <- allpcr %>%
+  select(subject.id, sample.id, sample.type, type, type.inf, Experiment, final.copies)
+
 ## Now can begin to bind all of the pieces together
 all_data <- samples.cc %>%
   left_join(enrolled_type.inf, by = "subject.id") %>%
   left_join(daypickfinal_dpo, by = c("subject.id", "date.visit")) %>%
-  left_join(allPCRfinal, by = c("subject.id", "sample.id")) %>%
+  left_join(allpcr_merge, by = c("subject.id", "sample.id", "sample.type", "type.inf")) %>%
   left_join(clinical_umd_body_temp, by = c("subject.id", "date.visit")) %>% 
   left_join(clinical_umd_symptoms, by = c("subject.id", "date.visit")) %>%
   left_join(clinical_umd_asthma, by = "subject.id") %>%
@@ -3224,6 +3261,8 @@ all_data <- samples.cc %>%
   left_join(VSAS, by = "subject.id") %>%
   arrange(subject.id, date.visit, type, sample.type, final.copies)
 print(nrow(all_data))
+
+all_data$final.copies <- as.numeric(all_data$final.copies)
 
 # Check number of subjectIDs in all_data df
 all_data_subjectID_check <- all_data %>%
@@ -3238,6 +3277,39 @@ print(nrow(all_data_gii_sample_instance_check))
 # Hmm, I'm getting 276 entries here but we should have 278 according to PNAS SI Table S1. 
 # Looking back through the G2 log and the rest of the data, I keep seeing 276 as the correct number here.
 # I'm not able to replicate the 278 number here. 
+
+# This df is missing the following variables (compared with Jing's output):
+# centimeterheight
+# kilogramweight
+# BMI
+# cur_asthma (how is this different than the asthma variable that is already in the df?)
+# lung_sym_2pos (not sure what this is or how to compute?)
+# fluvac_last2y
+# bothyear
+# age
+
+# Not sure what lung_symp_2pos means, but the other variables can be taken directly from the clinical_umd df or derived from variables in the clinical_umd df. 
+
+clinical_umd_height_weight_BMI_vax_age <- clinical_umd %>%
+  filter(!is.na(age)) %>%
+  mutate(height_inches = height_in + 12*(height_ft)) %>%
+  mutate(height_cm = 2.54*(height_inches)) %>%
+  mutate(weight_kg = 0.453592*weight) %>%
+  mutate(BMI = weight_kg/((height_cm/100)^2)) %>%
+  mutate(vax_bothyear = ifelse(fluvac_cur == 1 & fluvac_last2y == 1, 1, 0)) %>%
+  rename(subject.id = field_subj_id, date.visit = date_visit) %>%
+  select(subject.id, height_cm, weight_kg, BMI, fluvac_last2y, vax_bothyear, fluvac_10y, age)
+
+missing_fluvac_last2y <- clinical_umd_height_weight_BMI_vax_age %>%
+  filter(is.na(fluvac_last2y))
+print(nrow(missing_fluvac_last2y))
+# Note there are 121 missing fluvac_last2y data on 121 subjects. It looks like in Jing's final dataset used in tobit regression, these NAs were turned into 0s. 
+
+all_data <- all_data %>%
+  left_join(clinical_umd_height_weight_BMI_vax_age, by = c("subject.id")) %>%
+  arrange(subject.id, date.visit, type, sample.type, Experiment, final.copies)
+
+# Note that the finaldataset only has data for NPS, fine, and coarse, so note that most of the variables for the sample.type vars levels of throat swab and anterior nasal swab are NA. 
 
 # Write out the all_data df
 write.csv(all_data, "Curated Data/Analytical Datasets/all_screened.csv")
@@ -3259,10 +3331,10 @@ all_cases_gii_samples <- enrolled_type.inf %>%
 print(nrow(all_cases_gii_samples))
 
 # Check number of subjectIDs in all_cases df
-all_cases_subjectID_check <- all_cases_gii_samples %>%
+all_cases_gii_samples_subjectID_check <- all_cases_gii_samples %>%
   group_by(subject.id) %>%
   count()
-print(nrow(all_cases_subjectID_check))
+print(nrow(all_cases_gii_samples_subjectID_check))
 # There are 178 subjects
 
 all_cases_gii_sample_instance_check <- all_cases_gii_samples %>%
@@ -3308,8 +3380,8 @@ all_cases_to_flu_cases_gii_samples <- all_cases_gii_samples %>%
 
 # Check to make sure all of these instances were negative (for the instances where there was pcr data)
 all_cases_to_flu_cases_gii_samples_pcr <- all_cases_to_flu_cases_gii_samples %>%
-  filter(Ct > 0)
-# Correct. Only 47 had a ct value and this was >44 so it was counted as negative. 
+  filter(!is.na(final.copies))
+# Correct. 
 # So, now let's count how many gii sampling instances are part of this all_cases_to_flu_cases_gii_samples df
 
 all_cases_to_flu_cases_gii_samples_gii_sampling_instance_check <- all_cases_to_flu_cases_gii_samples %>%
@@ -3478,19 +3550,7 @@ PNAS_data_full <- PNAS_data_full %>%
 compare(PNAS_data_full, finaldataset)
 summary(compare(PNAS_data_full, finaldataset))
 
-# In fact, these dataset observations are identical! The only differences are those related to the variables included in each df that were predicted above. 
-# There were a few minor differences in variable class that can also be changed. 
-# We can easily add those variables on to the PNAS_data_full to make a truly "full" dataframe. 
-# In fact, let's do that!
-
-finaldataset$final.copies <- as.numeric(finaldataset$final.copies)
-
-finaldataset_merge <- finaldataset %>%
-  select(subject.id, date.visit, sample.type, NPswab, Coarse, Fine, height_cm, weight_kg, BMI, fluvac_last2y, vax_bothyear, fluvac_10y, age) %>%
-  distinct(subject.id, .keep_all = TRUE)
-
-PNAS_data_full <- PNAS_data_full %>%
-  left_join(finaldataset_merge, by = c("subject.id"))
+# In fact, these dataset observations are identical!
 
 # Note that the PNAS_data_full is called PNAS becasue it has additional variables, such as rapid test results, that the finaldataset (and the PNAS set that Jing used) don't have
 
