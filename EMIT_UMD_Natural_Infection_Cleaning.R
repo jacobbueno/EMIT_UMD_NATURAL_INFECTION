@@ -3557,6 +3557,13 @@ summary(compare(PNAS_data_full, finaldataset))
 
 write.csv(PNAS_data_full, "Curated Data/Analytical Datasets/PNAS_data_full.csv")
 
+# The EMIT Main Quarantine manuscript requires fine and coarse aerosol virus RNA copy GM and SD for comparison
+# To facilitate this analysis for the EMIT Main Q manuscript, we will write out a copy of this dataset to the EMIT_Data_Analysis_Jake/EMIT_Quarantine/Curated Data/Analytical Datasets directory
+write.csv(PNAS_data_full, "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_Quarantine/Curated Data/Analytical Datasets/EMIT_UMD_PNAS_data_full.csv")
+
+# The EMIT Natural Versus Artificial Inoculation manuscript requires this PNAS_data_full df as well. Thus we will write it out to the appropriate directory as well.
+write.csv(PNAS_data_full, "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/Natural_vs_Artificial_Infection/Analytical Datasets/EMIT_UMD_PNAS_data_full.csv")
+
 #### Exploring the PNAS_data_full df and the flu_cases df a little more ####
 
 ## Let's do some summary analysis 
