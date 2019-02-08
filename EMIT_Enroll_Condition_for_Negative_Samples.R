@@ -1,4 +1,5 @@
-# Title: enroll condition for negative samples
+# Title: Enrollment Condition for Negative Samples
+# EMIT_Enroll_Condition_for_Negative_Samples.R
 # Author: Jacob Bueno de Mesquita, with material from Jing Yan and Donald Milton
 
 # Summary: I'm moving this script to the git lab repository and also doing some minor cleaning to enabling the clean reproduction of this script.
@@ -6,7 +7,7 @@
 # Date: January 8; February, 2019
 
 # Description: This script reads in the Clinical Database (EMIT_samples.cc.RDS) and the subtyping file (EMIT_subtypes.RDS) to create a summary file that contains a list of the sampling instances with culture data (passage or quantitative focus assay) that shows that there is positive virus, despite a negative first visit NP swab (first visit NP swab is the basis of the EMIT_subtypes.RDS file). 
-# This output is: "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive culture or focus.RDS"
+# The output is: "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/negative subtype sample with positive culture or focus.RDS"
 # This output can be used in subsequent analyses or exploration into the dataset as it pertains to counting individuals with evidence of viral infection by both culture and qRT-PCR methods. 
 
 #########################

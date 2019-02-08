@@ -1,4 +1,4 @@
-# EMIT UMD Natural Infection Analysis
+# EMIT_UMD_Natural_Infection_Analysis.R
 # Program Objective: Run analysis on EMIT Natural Infection datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
 # Date: December 14, 2018 -- February 2019

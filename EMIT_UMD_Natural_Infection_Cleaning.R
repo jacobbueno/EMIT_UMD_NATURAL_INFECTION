@@ -1,4 +1,5 @@
 # EMIT UMD Natural Infection Study Data Curation - cleaning raw data to produce cleaned spreadsheets
+# EMIT_UMD_Natural_Infection_Cleaning.R
 # Program Objective: Take the datasets identified as critical, clean them, and later merge to form curated one or more curated datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
 # Date: December 14, 2018 - February 2019
