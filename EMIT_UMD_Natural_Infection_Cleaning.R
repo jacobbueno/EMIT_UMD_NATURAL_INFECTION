@@ -2,7 +2,26 @@
 # Program Objective: Take the datasets identified as critical, clean them, and later merge to form curated one or more curated datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
 # Date: December 14, 2018 - February 2019
-# Summary:
+# Summary: 
+# This script uses bits and pieces of code from Jing Yan and Don Milton that were previously used to produce cleaned data, for the Yan et al., 2018 PNAS publication on the EMIT study, and reproduces them in logical, linear fashion, whereby the steps in the cleaning and merging process are clearly understood. The original bits of code are cited in this script, however the author goes further to enhance the readability and functionality of the code, in many places streamlining. This ensures that the script maintains a high level of readability throughout. Originally, it was uncertain which of the original scripts (there are quite a few) were required to reproduce the cleaned dataset used in the PNAS publication analysis. It was also uncertain which raw datafiles (there are quite a few) should be used. It was also uncertain the linear order in which data cleaning steps should occur to produce the desired, clean data. Upon providing answers to these three, aforementioned areas of uncertainty, the question of how to deal with what appeared to be missing code arose and were dealt with by the author's own code development. The PNAS cleaned dataset was compared with the emerging, cleaned, reproduced dataset from this script for guidance. Other issues also arose such as the evolving nature of the packages used and the default settings contained in the commands of certain packages. For example, the "distinct" command from the "dplyr" package changed it's default settings from ".keep_all = T" to ".keep_all = F", effectively eliminating variables from the dataframe under operation that were not named in the distinct() command. To ensure future reproducibility, scripts (especially Markdown files) are stamped with the sessionInfo() command which prints out the information about the version of R Studio and each package. 
+
+# The current script goes beyond what was previously done. Rather than simply producing a single, cleaned dataset for the PNAS publication, this script produces 7 cleaned datasets:
+# 1) all_screened.csv: all data on all screened participants
+# 2) all_cases.csv: all data on all participants who met case criteria and were enrolled
+# 3) all_cases_gii_samples.csv: data only where a G-II sample was taken for all participants who met case criteria and were enrolled
+# 4) flu_cases.csv: all data on enrolled cases who were positive for influenza virus
+# 5) flu_cases_gii_samples.csv: data only where a G-II sample was taken for all enrolled cases who were positive for influenza virus
+# 6) PNAS_data_full.csv: final, cleaned dataset from among enrolled cases who were positive for influenza virus and who had complete cough data, limited to visits between days 1 and 3 of illness onset, and had complete PCR data.
+# 7) There is a seventh dataset, which is identical to the PNAS_data_full.csv dataset. It is called finaldatasetrepeatupdate.csv and is the version of the cleaned, PNAS dataset that is created by following closely with the process laid out by the pieces of code from Jing and Dr. Milton. It is exactly replicated by the PNAS_data_full.csv dataset, which was produced by using an updated, more streamlined, and more logical approach. 
+
+# A lucidchart diagram provides an excellent description of the cleaning and merging process that gives rise to these 7 datasets. This lucidchart diagram can be accessed here: https://www.lucidchart.com/invitations/accept/2d2c49c7-0b46-42e6-af8a-bec41ceff41f. 
+# Additionally, the word file under EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Analysis Notes called "samples need to be removed from final anlaysis.docx" provides a summary (see the table called "Moving from the total screened df to the PNAS analytical df" in the document) of how the dataset with data from all of the screened participants, dwindles down to the final, cleaned dataset. This is also reflected in the lucidchart diagram. 
+# Several key discrepancies have been raised between the resulting PNAS_data_full.csv and Jing's original PNAS cleaned dataset (which can be found in the EMIT_Data_Analysis box.com directory).
+# 1) The labelling of the type (flu A or B) or infection for participants who were coinfected with both types, in the previous version, incorrectly labeled all of the pcr results as being either flu A or B. This was updated to reflect the accurate type of virus that was being targetting in the associated pcr result variables. This resulted in the addition of a few observations to the datasets. 
+# 2) There were a couple of instances where pcr files had 2 different names, but were actually the same file. This occured where the date in the name of the pcr experiment used a "0" in front of a 2-digit month abbreviation (i.e., 07 for august, as opposed to simply 7). These instances were removed in the updated dataframes, thus eliminating a few, repeated observations from the datasets. 
+# 3) The RNA copy#-to-virus particle ratio used in the original cleaning process was found to be 80 and 411 for flu A and B, respectively. However Michael Grantham indicates that this ratio should actually be 250 and 272 for flu A and B, respectively. The PCR experiments that support Grantham's claim are found in the EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT RNA copies per virion directory. Thus, we updated this RNA copy#-to-virus particle ratio in the new datasets.
+# 4) It appears that the variables cur_asthma and lung_sym_2pos in Jing's original dataset, cannot be reproduced from any of the available raw data. Email correspondence with Jing has yet to reveal how to reproduce these variables, or what they mean precisely. There is an "asthma" variable in the dataset that doesn't seem to correspond exactly with the "cur_asthma" variable in Jing's original dataset. 
+# 5) The fluvac_last2y variable appears to have quite a few instances of missingness. NAs, as opposed to 0 (for no flu vaccine within the last 2 years), and 1 (for yes, flu vaccine taken within the last 2 years), were observed for a number of participants. Jing's original dataset had marked these NA's as 0, but I have decided to not do this unless otherwise directed. Thus, this represents another discrepancy. As a result, the bothyear variable (flu vaccine taken both years) is also incomplete because of these NA values that have not been forced to 0 as they appear to have been done in the original PNAS data.
 
 #### Load required packages and set working directory ####
 
@@ -2839,7 +2858,7 @@ enrolledcase <- enrolled %>%
 # So far this 'enrolled' object doesn't is not incoporated at all.
 # It shows the list of 178 enrolled study participants
 
-####**************G2 LOG DATA****************####
+#### G2 LOG DATA ####
 g2_in_file <- 'UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
 g2_log <- read.csv(g2_in_file)
 
@@ -3084,7 +3103,7 @@ print(nrow(finaldataset_missing_fluvac_last2y))
 # Somehow in the original data that was used in the PNAS analysis, we have data for this variable on all 142 subjects.
 # It looks like all of these 55 subject IDs are marked in the PNAS final dataset as having a 0 for the fluvac_last2y as opposed to an NA. I'm not sure if this is correct. 
 
-### Creating the "all_data" df that has all the data from all of the screened and enrolled participants ####
+#### Creating the "all_data" df that has all the data from all of the screened and enrolled participants ####
 
 # Need to merge together the pcr data into a definitive set called allPCRfinal
 npfirst1 <- npfirst %>%

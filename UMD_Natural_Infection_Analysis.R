@@ -1,8 +1,8 @@
 # EMIT UMD Natural Infection Analysis
 # Program Objective: Run analysis on EMIT Natural Infection datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
-# Date: December 14, 2018 - February 2019
-# Summary: While most of the analysis for the EMIT_UMD study was done in SAS (especially that as part of the PNAS manuscript), here are some others analyses that we will include as well. 
+# Date: December 14, 2018 -- February 2019
+# Summary: While most of the analysis for the EMIT_UMD study was done in SAS (especially that as part of the PNAS manuscript), here are some others analyses that we will include as well. Here, we estimate the mean and variance for the ratio of ffu/copy number in fine aerosols from EMIT using a mixed model with random effect of person and fixed effect of day since onset of symptoms. 
 
 #### Load required packages and set working directory ####
 
@@ -15,7 +15,8 @@ library(lubridate)
 library(arsenal)
 library(lme4)
 
-setwd("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection")
+# setwd("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection")
+# Commented out the setwd() command in order to properly run the markdown report compilation.
 
 sessionInfo() # for reproducibility
 
@@ -23,7 +24,7 @@ sessionInfo() # for reproducibility
 # Use a mixed model with random effect of person and fixed effect of day since onset of symptoms. 
 # First have to cut the right df
 
-PNAS_data_full <- read.csv("Curated Data/Analytical Datasets/PNAS_data_full.csv") %>%
+PNAS_data_full <- read.csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Analytical Datasets/PNAS_data_full.csv") %>%
   select(-X)
 PNAS_data_full$date.visit <- as.Date(PNAS_data_full$date.visit)
 

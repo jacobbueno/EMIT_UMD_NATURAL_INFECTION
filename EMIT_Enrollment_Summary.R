@@ -1,6 +1,13 @@
 # Title: EMIT_Enrollment_Summary
-# Author: Jacob Bueno de Mesquita cleaned up the script originalyl by Jing Yan and Don Milton
-# Date: January 7, February 2, 2019
+# Author: Jacob Bueno de Mesquita cleaned up the script originally by Jing Yan and Don Milton
+# Date: January 7; February 2019
+
+# Summary:
+# This script does some basic data summarizing for the study and it appears to have been useful during the ongoing participant enrollment process and for periodic checks of the data and reports. I have pulled together and cleaned up code from 2 scripts: The "Snippets analysis_1.r", and the "field database with redcap culture.R".
+# Of importance, the Clinical Database and the G2 Log, which are used to produce an enrollment summary which is written out as "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_Summary.csv"
+# This enrollment summary give s a list of the subject IDs, whether they were enrolled in the study (1 if yes, 0 if no) and a "perform_date", which is mostly likely the date of first G-II visit with each particular subject ID. 
+# A set of roommate pairs is also identified in this script and printed to the console, although not saved as an output dataset. This list of roommates is critical for sequence analysis to test for transmission between roommate pairs. 
+# Finally, a bit of data cleaning and summarizing, with comments is done with the Field Sample Database and the REDCap Database. 
 
 #### **** Using Script: Jing Yan and Dr. Milton's "Snippets analysis_1.r" **** ####
 
@@ -30,7 +37,7 @@ sessionInfo()
 
 #### READ in and work with Clinical Database ####
 
-clinical_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv"
+clinical_in_file <- "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITClinicalUMD2013.csv"
 clinical_umd <- read.csv(clinical_in_file)
 
 ## Check whether there was anyone with no visit 1 who has a record for having had a g2 run ##
@@ -228,7 +235,7 @@ names(tab3link)[4] <- 'first_visit_date'
 
 #### READ in and work with the G2 Log Data ####
 
-g2_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv"
+g2_in_file <- "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/GII/EMITGIILogUMD2013.csv"
 g1 <- read.csv(g2_in_file)
 
 # Sujbect 81 in GII file appear to have a collection_2_arm 1 but it actually is a one time GII subject
@@ -280,7 +287,7 @@ m2 <- tab1link %>%
   select(subject_id, enroll, perform_date)
 
 ## Write out the enrollment summary ##
-write.csv(m2, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_Summary.csv")
+write.csv(m2, "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_Summary.csv")
 
 #### **** Using Script: Jing Yan's "field database with redcap culture.R" **** #### 
 
@@ -296,7 +303,7 @@ write.csv(m2, "EMIT_UMD_Natural_Infection/Curated Data/Cleaned Data/Enrollment_S
 
 #### READ in and work with FIELD SAMPLE DATABASE ####
 
-field_db_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv"
+field_db_in_file <- "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT UMD Field_db/field_db.csv"
 a <- read.csv(field_db_in_file, as.is = T)
 
 names(a)
@@ -314,7 +321,7 @@ a2 <- a1 %>%
 
 # Read in redcap_culture data
 
-sample_in_file <- "EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv"
+sample_in_file <- "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/REDCAP/EMITUMDSamples2013_DATA.csv"
 b <- read.csv(sample_in_file, as.is = T)
 
 # Add a new column named as new date which is the same with date of sample collection
