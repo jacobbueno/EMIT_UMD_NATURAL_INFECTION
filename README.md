@@ -1,10 +1,13 @@
 # EMIT_UMD_NATURAL_INFECTION
 
-EMIT UMD Natural Infection study.
+EMIT UMD Natural Infection study. This README describes the Data cleaning and analysis project using the EMIT data from the University of Maryland campus community. The results from this study were published in PNAS (Yan et al., 2018). The goal of this R project is to take all of the raw data files from the study, clean them and merge them together into an authoritative dataset that is ready for SAS analysis with tobit mixed models. The scripts that do that are described here.
+
+Date: December 15, 2018
+Updated: February 8, 2019
 
 The goal of this repo is to provide all of the code required to clean the raw EMIT UMD campus population data, merge the data into analyitical datasets, and complete a few brief analyses with this data. 
 
-There are 4 cleaning/analytical .R scripts in this repo and one .R script (EMIT_UMD_Natural_Infection_Source_Scripts.R) to source these 4. 
+There are 4 cleaning/analytical .R scripts in this repo and one .R script (EMIT_UMD_Natural_Infection_Source_Scripts.R) to source and render markdown reports for these 4 cleaning/analytical .R scripts. 
 
 The 4 cleaning/analytical .R scripts in this repo are described below (with the script of greatest importance being the first one listed -- the EMIT_UMD_Natural_Infection_Cleaning.R script):
 
@@ -42,6 +45,8 @@ c) The RNA copy#-to-virus particle ratio used in the original cleaning process w
 d) It appears that the variables cur_asthma and lung_sym_2pos in Jing's original dataset, cannot be reproduced from any of the available raw data. Email correspondence with Jing has yet to reveal how to reproduce these variables, or what they mean precisely. There is an "asthma" variable in the dataset that doesn't seem to correspond exactly with the "cur_asthma" variable in Jing's original dataset. 
 
 e) The fluvac_last2y variable appears to have quite a few instances of missingness. NAs, as opposed to 0 (for no flu vaccine within the last 2 years), and 1 (for yes, flu vaccine taken within the last 2 years), were observed for a number of participants. Jing's original dataset had marked these NA's as 0, but I have decided to not do this unless otherwise directed. Thus, this represents another discrepancy. As a result, the bothyear variable (flu vaccine taken both years) is also incomplete because of these NA values that have not been forced to 0 as they appear to have been done in the original PNAS data.
+
+f) Although Table S1 in Yan et al., 2018 shows that there were 178 breath collection visits from 178 subjects, we were unable to replicate this finding. We only ever show that there is breath collection data for 276 visits from 178 subjects. Perhaps there were a couple of intstances where breath collection was initiated but not completed and not marked has having occured in the REDCap database. 
 
 ****Important Note about qRT-PCR Data and RNA Copies: To be very clear on how we arrived at the final.copies variable, which shows the number of RNA copies per sample collected for NP swabs and fine and coarse aerosols, the process is as follows. The MxPro pcr assay software provides a dRn (normalized) Ct value and corresponding viral particle number, which is based on a standard curve from EM-quantified PR/8 influenza A virus stock that was extracted and run on the qRT-PCR assay in the exact same way as the samples. This virus particle number is then multiplied by the RNA copy number - to - virus particle ratio that was computed from a series of experiments documented in the "EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT RNA copies per virion" directory. The ratios are 250 and 272 for flu A and B, respectively. Next, the RNA copy numbers were multiplied by the dilution factors based on the laboratory processing workflow (i.e., the amount of sample used for extraction and then for qRT-PCR related to the whole sample volume). For NP swabs this dilution factor was 100 (we took 50ul of sample out of 1ml total sample for extraction, and then took a fifth of the extraction volume to run the qRT-PCR assay), except for a few samples that had a dilution factor of 100 since 100ul instead of 50ul was used for the extraction. For fine and coarse aerosol samples, the dilution factor was 25 (we took 200ul of sample out of 1ml total sample for extraction, and then took a fifth of the extraction volume to run the qRT-PCR assay). Finally, these dilution-calibrated, RNA copy numbers, we multiplied by a qRT-PCR calibration factor to account for shifts in fluorescence over time (given the long period of time during which assays were run; this calibration factor was informed by standard curves and high and low interrun calibrators that were run over the course of the lab processing for these samples - details are described in the code).
 
