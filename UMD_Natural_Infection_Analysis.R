@@ -24,8 +24,7 @@ sessionInfo() # for reproducibility
 # Use a mixed model with random effect of person and fixed effect of day since onset of symptoms. 
 # First have to cut the right df
 
-PNAS_data_full <- read.csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Analytical Datasets/PNAS_data_full.csv") %>%
-  select(-X)
+PNAS_data_full <- read.csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Analytical Datasets/PNAS_data_full.csv")
 PNAS_data_full$date.visit <- as.Date(PNAS_data_full$date.visit)
 
 # Find each sample where we have PCR and focus assay
