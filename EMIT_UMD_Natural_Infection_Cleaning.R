@@ -3210,7 +3210,7 @@ print(nrow(pcr_full_subjectID_check))
 # 207 subjects
 
 pcr_full_merge <- pcr_full %>%
-  select(subject.id, sample.id, type, Experiment, final.copies)
+  select(subject.id, sample.id, type, Experiment, Ct, final.copies)
 
 ## Now, get the samples.cc variable ready to merge.
 
@@ -3576,7 +3576,7 @@ summary(compare(PNAS_data_full, finaldataset))
 
 # Note that the PNAS_data_full is called PNAS becasue it has additional variables, such as rapid test results, that the finaldataset (and the PNAS set that Jing used) don't have
 
-write.csv(PNAS_data_full, "Curated Data/Analytical Datasets/PNAS_data_full.csv")
+write_csv(PNAS_data_full, "Curated Data/Analytical Datasets/PNAS_data_full.csv")
 
 # The EMIT Main Quarantine manuscript requires fine and coarse aerosol virus RNA copy GM and SD for comparison
 # To facilitate this analysis for the EMIT Main Q manuscript, we will write out a copy of this dataset to the EMIT_Data_Analysis_Jake/EMIT_Quarantine/Curated Data/Analytical Datasets directory
