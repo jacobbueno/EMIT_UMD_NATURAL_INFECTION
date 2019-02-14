@@ -20,7 +20,7 @@
 # Several key discrepancies have been raised between the resulting PNAS_data_full.csv and Jing's original PNAS cleaned dataset (which can be found in the EMIT_Data_Analysis box.com directory).
 # 1) The labelling of the type (flu A or B) or infection for participants who were coinfected with both types, in the previous version, incorrectly labeled all of the pcr results as being either flu A or B. This was updated to reflect the accurate type of virus that was being targetting in the associated pcr result variables. This resulted in the addition of a few observations to the datasets. 
 # 2) There were a couple of instances where pcr files had 2 different names, but were actually the same file. This occured where the date in the name of the pcr experiment used a "0" in front of a 2-digit month abbreviation (i.e., 07 for august, as opposed to simply 7). These instances were removed in the updated dataframes, thus eliminating a few, repeated observations from the datasets. 
-# 3) The RNA copy#-to-virus particle ratio used in the original cleaning process was found to be 80 and 411 for flu A and B, respectively. However Michael Grantham indicates that this ratio should actually be 250 and 272 for flu A and B, respectively. The PCR experiments that support Grantham's claim are found in the EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT RNA copies per virion directory. Thus, we updated this RNA copy#-to-virus particle ratio in the new datasets.
+# 3) The RNA copy#-to-virus particle ratio for the viral standards (PR/8 and B/Lee) used in the original cleaning process was found to be 80 and 411 for flu A and B, respectively. Michael Grantham's original experiments indicate that this ratio should actually be 250 and 272 for flu A and B, respectively. However, after applying the overall EMIT project's standard curve information to these experiments these final, adjusted ratios become 80 and 411 for flu A and B, repectively. The PCR experiments that support this are found in the "EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/UMD_Raw_Data/EMIT RNA copies per virion" directory.
 # 4) It appears that the variables cur_asthma and lung_sym_2pos in Jing's original dataset, cannot be reproduced from any of the available raw data. Email correspondence with Jing has yet to reveal how to reproduce these variables, or what they mean precisely. There is an "asthma" variable in the dataset that doesn't seem to correspond exactly with the "cur_asthma" variable in Jing's original dataset. 
 # 5) The fluvac_last2y variable appears to have quite a few instances of missingness. NAs, as opposed to 0 (for no flu vaccine within the last 2 years), and 1 (for yes, flu vaccine taken within the last 2 years), were observed for a number of participants. Jing's original dataset had marked these NA's as 0, but I have decided to not do this unless otherwise directed. Thus, this represents another discrepancy. As a result, the bothyear variable (flu vaccine taken both years) is also incomplete because of these NA values that have not been forced to 0 as they appear to have been done in the original PNAS data.
 # 6) f) Although Table S1 in Yan et al., 2018 shows that there were 178 breath collection visits from 178 subjects, we were unable to replicate this finding. We only ever show that there is breath collection data for 276 visits from 178 subjects. Perhaps there were a couple of intstances where breath collection was initiated but not completed and not marked has having occured in the REDCap database. 
@@ -1108,7 +1108,7 @@ names(np.a.s)[2:length(names(np.a.s))] <- paste("sample", names(np.a.s)[2:length
 print(summary(np.a.s))
 
 # Subjects with sample_6 cultured or subject_id = 250 (after reassigning subject 225 to subject 250)
-print(filter(np.a.s, sample_6 == T|subject_id == 250))
+print(filter(np.a.s, sample_6 == T | subject_id == 250))
 
 # All samples for subject 247
 print(filter(merge3, 
@@ -1515,7 +1515,7 @@ pcr_A <- rbind(pcr_A1, pcr_A2, pcr_A3) %>%
   ungroup()
 pcr_A <- pcr_A %>% 
   mutate(type = 'A') %>% 
-  mutate(copy.num = copies.in*250)
+  mutate(copy.num = copies.in*80) # This 80 is the RNA copy to virus copy ratio for the flu A PR/8 standard. 
 
 # Number of rows of total (gii and 2rd or 3rd NP samples) influenza A PCR data
 nrow(pcr_A)
@@ -1607,7 +1607,7 @@ pcr_B <- pcr_B %>%
   mutate(type = 'B')
 pcr_B <- pcr_B[order(pcr_B$Well.Name), ]
 pcr_B <- pcr_B %>%
-  mutate(copy.num = copies.in*272)
+  mutate(copy.num = copies.in*411) # 411 is the RNA copy to virus particle (for EM-quantified B/Lee virus used for standard)
 
 # Number of rows of total (gii and 2rd or 3rd NP samples) influenza B PCR data
 nrow(pcr_B)
@@ -2294,7 +2294,7 @@ npA <- npA %>%
 npA[npA == "No Ct"] <- ''
 npA$copies.in <- as.numeric(npA$copies.in)
 npA <- npA %>%
-  mutate(copy.num = copies.in*100*250) %>%
+  mutate(copy.num = copies.in*100*80) %>% # 100 is the dilution factor, and 80 is the RNA copy to virus particle ratio (PR/8).
   arrange(subject.id)
 npA$result.type <- 'A'
 npA <- npA %>%
@@ -2359,8 +2359,9 @@ npB <- npB %>%
 npB[npB == "No Ct"] <- ''
 npB$copies.in <- as.numeric(npB$copies.in)
 npB <- npB %>% 
-  mutate(copy.num = copies.in*100*272) %>%
+  mutate(copy.num = copies.in*100*411) %>% 
   arrange(subject.id)
+# 100 is the dilution factor and 411 is the RNA copy to virus particle (for EM-quantified B/Lee virus used for standard)
 npB$result.type <-'B'
 npB <- npB %>%
   mutate(sample.id = gsub('_B', '', Well.Name)) %>%
@@ -3113,15 +3114,14 @@ npfirst1 <- npfirst %>%
   mutate(final.copies = virus.copies) %>%
   ungroup()
 # The difference between copies.in and copy.num in the npfirst object is a factor of 8,000 for flu A assays and 41,100 for flu B assays.
-# If we break down these factors of 8,000 (for flu A) and 41,100 (for flu B) we see that it is probably a combination of what Jing used for the conversion factor from virus particles and RNA copies (80 for flu A and 411 for flu B although it should be 250 for flu A and 272 for flu B), and the dilution factor (100 for NP swabs, except for a few where 100ul instead of 50ul was used to extract)
+# If we break down these factors of 8,000 (for flu A) and 41,100 (for flu B) we see that it is probably a combination of what Jing used for the conversion factor from virus particles and RNA copies (80 for flu A and 411 for flu B, and the dilution factor (100 for NP swabs, except for a few where 100ul instead of 50ul was used to extract).
 # So the virus.copies variable is actually the finalized pcr variable and all we needed to do in the above step was rename virus.copies as final.copies.
-# However, this whole process is under review because the conversion factors between virus particles and RNA copies are not what we believe that they should be. 
 
 total.pcr1 <- total.pcr %>%
   select(subject.id, Well.Name, type, Experiment, Ct..dRn., cfactor, virus.copies) %>%
   rename(sample.id = Well.Name)
 # Unlike the first visit NP swab data discussed above in the npfirst object, the total.pcr object has undergone a different data manipulation process with respect to applying calibration factors.
-# For total.pcr, the copies.in variable was multiplied by the RNA copies to virus particle conversion factors of 80 (for flu A) and 411 (for flu B) in order to get out copy.num (note - we are reviewing this because we believe that the conversion factors should really be 250 and 272 for flu A and B, respectively). Then, copy.num was multiplied by the pcr assay calibration factor to get virus.copies. Unlike in the NP swab first visit data where the dilution factor was applied as part of the process of getting from copies.in to copy.num, with the aerosols and post first visit NP swabs, the dilution factor has not yet been applied and, thus, the following code is written to get from virus.copies to a final.copies variable that has the dilution factor applied to it. 
+# For total.pcr, the copies.in variable was multiplied by the RNA copies to virus particle conversion factors of 80 (for flu A) and 411 (for flu B) in order to get out copy.num. Then, copy.num was multiplied by the pcr assay calibration factor to get virus.copies. Unlike in the NP swab first visit data where the dilution factor was applied as part of the process of getting from copies.in to copy.num, with the aerosols and post first visit NP swabs, the dilution factor has not yet been applied and, thus, the following code is written to get from virus.copies to a final.copies variable that has the dilution factor applied to it. 
 
 ## Need the below code (copied from above) to manipulate the pcr data from the total.pcr object in order to apply the dilution factors for the aerosol data and NP swabs that were run on visits 2 or 3 (not first visit NPS).
 
