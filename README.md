@@ -9,6 +9,8 @@ The goal of this repo is to provide all of the code required to clean the raw EM
 
 There are 4 cleaning/analytical .R scripts in this repo and one .R script (EMIT_UMD_Natural_Infection_Source_Scripts.R) to source and render markdown reports for these 4 cleaning/analytical .R scripts. 
 
+There are 4 word documents which are Markdown reports that have been compiled directly from the scripts. These word documents have names that match their corresponding mother script. 
+
 The 4 cleaning/analytical .R scripts in this repo are described below (with the script of greatest importance being the first one listed -- the EMIT_UMD_Natural_Infection_Cleaning.R script):
 
 
