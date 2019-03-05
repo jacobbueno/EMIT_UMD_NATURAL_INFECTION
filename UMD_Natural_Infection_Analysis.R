@@ -142,3 +142,56 @@ table(focus_pos_fine_pos_averaged_replicates$dpo)
 
 # writing this out so that Charles Ma can work on it related to the power calculation for new RO1 grants due Februrary 5, 2019
 # write.csv(focus_pos_fine_pos_averaged_replicates, "/Users/jbueno/Desktop/focus_pos_fine_pos.csv")
+
+
+
+## For Gene Tan JCVI Sequencing ####
+# What were the ct values of the influenza B virus samples.
+
+# Flu B NPS
+
+flub_nps <- PNAS_data_full %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
+
+# Flu B fine aerosol
+
+flub_fine <- PNAS_data_full %>%
+  filter(type == "B") %>%
+  filter(sample.type == "GII condensate NO mask") %>%
+  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
+
+# Flu B coarse aerosol
+
+flub_coarse <- PNAS_data_full %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Impactor 5 um NO mask") %>%
+  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
+
+# Flu A NPS
+
+flua_nps <- PNAS_data_full %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
+
+# Flu A fine aerosol
+
+flua_fine <- PNAS_data_full %>%
+  filter(type == "A") %>%
+  filter(sample.type == "GII condensate NO mask") %>%
+  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
+
+# Flu A coarse aerosol
+
+flua_coarse <- PNAS_data_full %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Impactor 5 um NO mask") %>%
+  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
