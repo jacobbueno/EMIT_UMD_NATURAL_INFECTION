@@ -195,3 +195,225 @@ flua_coarse <- PNAS_data_full %>%
   filter(sample.type == "Impactor 5 um NO mask") %>%
   mutate(mean_ct = mean(Ct, na.rm = TRUE))
 
+
+## Checking Nancy Leung's 3-Climate Paper data ####
+
+# It appears that Nancy may have used just the first day of G2 sampling from each participant. To test this, I will compute the number and percent of G2 positive samples, the GM and GSD, and the the range for the first day of G2 sampling for each participant, as well as for all days of G2 sampling combined (over all 3 potential study days). 
+
+# We can filter the data to a subset where g2.run == 1 and then compute for NPS, coarse, and fine
+
+PNAS_data_full_g2_run_1 <- PNAS_data_full %>%
+  filter(g2.run == 1)
+
+PNAS_data_full_g2_run_1_A_NPS_1_obs <- PNAS_data_full_g2_run_1 %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count == 1) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full_g2_run_1) %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies)
+  
+
+PNAS_data_full_g2_run_1_A_NPS_2_plus_obs <- PNAS_data_full_g2_run_1 %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count >= 2) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full_g2_run_1) %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies) %>%
+  mutate(final.copies = if_else(is.na(final.copies), 2000*1/sqrt(2), final.copies)) %>% 
+  group_by(subject.id, dpo) %>%
+  mutate(final.copies = mean(final.copies)) %>%
+  distinct(subject.id, dpo, final.copies)
+
+
+NPS_A <- PNAS_data_full_g2_run_1_A_NPS_1_obs %>%
+  bind_rows(PNAS_data_full_g2_run_1_A_NPS_2_plus_obs) %>%
+  filter(!is.na(final.copies)) %>%
+  mutate(ln.final.copies = log(final.copies)) %>%
+  ungroup() %>%
+  summarize(A_Fine_Positive_Samples_Geom_Mean = exp(mean(ln.final.copies, na.rm = TRUE)),
+            A_Fine_Positive_Samples_GSD = exp(sd(ln.final.copies, na.rm = TRUE)),
+            A_Fine_Positive_Samples_Max = exp(max(ln.final.copies, na.rm = TRUE)),
+            A_Fine_Positive_Samples_n = n())
+NPS_A$A_Fine_Positive_Samples_Geom_Mean <- 
+  format(NPS_A$A_Fine_Positive_Samples_Geom_Mean, scientific = TRUE)
+NPS_A$A_Fine_Positive_Samples_Max <- 
+  format(NPS_A$A_Fine_Positive_Samples_Max, scientific = TRUE)
+
+### Repeating the above for flu B using only the first day of g2 runs
+PNAS_data_full_g2_run_1 <- PNAS_data_full %>%
+  filter(g2.run == 1)
+
+PNAS_data_full_g2_run_1_B_NPS_1_obs <- PNAS_data_full_g2_run_1 %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count == 1) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full_g2_run_1) %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies)
+
+
+PNAS_data_full_g2_run_1_B_NPS_2_plus_obs <- PNAS_data_full_g2_run_1 %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count >= 2) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full_g2_run_1) %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies) %>%
+  mutate(final.copies = if_else(is.na(final.copies), 2000*1/sqrt(2), final.copies)) %>% 
+  group_by(subject.id, dpo) %>%
+  mutate(final.copies = mean(final.copies)) %>%
+  distinct(subject.id, dpo, final.copies)
+
+
+NPS_B <- PNAS_data_full_g2_run_1_B_NPS_1_obs %>%
+  bind_rows(PNAS_data_full_g2_run_1_B_NPS_2_plus_obs) %>%
+  filter(!is.na(final.copies)) %>%
+  mutate(ln.final.copies = log(final.copies)) %>%
+  ungroup() %>%
+  summarize(B_Fine_Positive_Samples_Geom_Mean = exp(mean(ln.final.copies, na.rm = TRUE)),
+            B_Fine_Positive_Samples_GSD = exp(sd(ln.final.copies, na.rm = TRUE)),
+            B_Fine_Positive_Samples_Max = exp(max(ln.final.copies, na.rm = TRUE)),
+            B_Fine_Positive_Samples_n = n())
+NPS_B$B_Fine_Positive_Samples_Geom_Mean <- 
+  format(NPS_B$B_Fine_Positive_Samples_Geom_Mean, scientific = TRUE)
+NPS_B$B_Fine_Positive_Samples_Max <- 
+  format(NPS_B$B_Fine_Positive_Samples_Max, scientific = TRUE)
+
+
+
+
+
+### Repeating the above but using all the data, not just the first day of g2 sampling
+# For flu A
+PNAS_data_full_g2_run_1_A_NPS_1_obs <- PNAS_data_full %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count == 1) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full) %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies)
+
+
+PNAS_data_full_g2_run_1_A_NPS_2_plus_obs <- PNAS_data_full %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count >= 2) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full) %>%
+  filter(type == "A") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies) %>%
+  mutate(final.copies = if_else(is.na(final.copies), 2000*1/sqrt(2), final.copies)) %>% 
+  group_by(subject.id, dpo) %>%
+  mutate(final.copies = mean(final.copies)) %>%
+  distinct(subject.id, dpo, final.copies)
+
+
+NPS_A <- PNAS_data_full_g2_run_1_A_NPS_1_obs %>%
+  bind_rows(PNAS_data_full_g2_run_1_A_NPS_2_plus_obs) %>%
+  filter(!is.na(final.copies)) %>%
+  mutate(ln.final.copies = log(final.copies)) %>%
+  ungroup() %>%
+  summarize(A_Fine_Positive_Samples_Geom_Mean = exp(mean(ln.final.copies, na.rm = TRUE)),
+            A_Fine_Positive_Samples_GSD = exp(sd(ln.final.copies, na.rm = TRUE)),
+            A_Fine_Positive_Samples_Max = exp(max(ln.final.copies, na.rm = TRUE)),
+            A_Fine_Positive_Samples_n = n())
+NPS_A$A_Fine_Positive_Samples_Geom_Mean <- 
+  format(NPS_A$A_Fine_Positive_Samples_Geom_Mean, scientific = TRUE)
+NPS_A$A_Fine_Positive_Samples_Max <- 
+  format(NPS_A$A_Fine_Positive_Samples_Max, scientific = TRUE)
+
+# For flu B
+
+PNAS_data_full_g2_run_1_B_NPS_1_obs <- PNAS_data_full %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count == 1) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full) %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies)
+
+
+PNAS_data_full_g2_run_1_B_NPS_2_plus_obs <- PNAS_data_full %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  group_by(subject.id, dpo) %>%
+  mutate(sample_copy_mean = mean(final.copies, na.rm = TRUE)) %>% # doing this because there were some instances where there were repeated NPS pcr assays - taking the mean of these repeats here. %>%
+  distinct(subject.id, dpo, final.copies) %>%
+  summarize(count = n()) %>%
+  filter(count >= 2) %>%
+  select(-count) %>%
+  left_join(PNAS_data_full) %>%
+  filter(type == "B") %>%
+  filter(sample.type == "Nasopharyngeal swab") %>%
+  select(subject.id, dpo, final.copies) %>%
+  mutate(final.copies = if_else(is.na(final.copies), 2000*1/sqrt(2), final.copies)) %>% 
+  group_by(subject.id, dpo) %>%
+  mutate(final.copies = mean(final.copies)) %>%
+  distinct(subject.id, dpo, final.copies)
+
+
+NPS_B <- PNAS_data_full_g2_run_1_B_NPS_1_obs %>%
+  bind_rows(PNAS_data_full_g2_run_1_B_NPS_2_plus_obs) %>%
+  filter(!is.na(final.copies)) %>%
+  mutate(ln.final.copies = log(final.copies)) %>%
+  ungroup() %>%
+  summarize(B_Fine_Positive_Samples_Geom_Mean = exp(mean(ln.final.copies, na.rm = TRUE)),
+            B_Fine_Positive_Samples_GSD = exp(sd(ln.final.copies, na.rm = TRUE)),
+            B_Fine_Positive_Samples_Max = exp(max(ln.final.copies, na.rm = TRUE)),
+            B_Fine_Positive_Samples_n = n())
+NPS_B$B_Fine_Positive_Samples_Geom_Mean <- 
+  format(NPS_B$B_Fine_Positive_Samples_Geom_Mean, scientific = TRUE)
+NPS_B$B_Fine_Positive_Samples_Max <- 
+  format(NPS_B$B_Fine_Positive_Samples_Max, scientific = TRUE)
+
+
+
+
+
+
+
+
+
