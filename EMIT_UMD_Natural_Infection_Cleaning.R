@@ -220,6 +220,19 @@ sum_clinical_subjectID_count <- sum_clinical %>%
   summarise(count = n())
 # This shows that this df has information on all 355 screened participants
 
+
+#### Let's print out a list of roommate referrals because this is useful for sequence/transmission work ####
+
+# For now we will simply print out the list of roommate pairs, but we may want to merge this with finalized infection subtypes later
+
+roommates <- clinical_umd %>%
+  select(field_subj_id, date_enroll, is_rmmate, indx_id, date_indx_on, date_indx_visit) %>%
+  filter(is_rmmate == 1)
+
+write.csv(roommates, "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Curated Data/Analytical Datasets/roommates.csv")
+
+
+
 #### READ in and work with G2 LOG DATA ####
 
 g2_in_file <- 'UMD_Raw_Data/GII/EMITGIILogUMD2013.csv'
