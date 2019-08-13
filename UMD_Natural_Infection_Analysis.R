@@ -1,7 +1,7 @@
 # EMIT_UMD_Natural_Infection_Analysis.R
 # Program Objective: Run analysis on EMIT Natural Infection datasets
 # Author: Jacob Bueno de Mesquita using material from Jing Yan and Don Milton
-# Date: December 14, 2018 -- February 2019
+# Date: December 14, 2018 -- February 2019, August 2019
 # Summary: While most of the analysis for the EMIT_UMD study was done in SAS (especially that as part of the PNAS manuscript), here are some others analyses that we will include as well. Here, we estimate the mean and variance for the ratio of ffu/copy number in fine aerosols from EMIT using a mixed model with random effect of person and fixed effect of day since onset of symptoms. 
 
 #### Load required packages and set working directory ####
@@ -194,6 +194,95 @@ flua_coarse <- PNAS_data_full %>%
   filter(type == "A") %>%
   filter(sample.type == "Impactor 5 um NO mask") %>%
   mutate(mean_ct = mean(Ct, na.rm = TRUE))
+
+
+## Checking JCVI sequencing metadata with Todd Treagen - August 2019
+
+## Read in the batch data in the files from JCVI
+
+UMD_batch1 <- read_xls("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/20190306_UMDA_batch1_final_stats.xls", sheet = "UMDA_batch1")
+
+UMD_batch1_draft_status <- read_xls("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/20190306_UMDA_batch1_final_stats.xls", sheet = "Draft Status", col_names = FALSE)
+
+UMD_batch2 <- read_xls("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/20190411_UMDA_batch2_final_stats.xls", sheet = "UMDA_batch2")
+
+UMD_batch2_draft_status <- read_xls("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/20190411_UMDA_batch2_final_stats.xls", sheet = "Draft Status", col_names = FALSE)
+
+
+## Deal with the formatting in the "Draft Status" sheets -- fill in the JCVI Bac ID for each place where it is missing (in the UMD_batch1_draft_status and UMD_batch2_draft_status dfs)
+
+## For batch1 and batch2, set the column names, remove the blank rows, then fill in the JCVI Bac IDs where needed
+
+# batch1...
+
+UMD_batch1_draft_status_cols <- UMD_batch1_draft_status %>%
+  rename(JCVI_Bac_ID = X__1,
+         segment = X__2,
+         note = X__3) %>%
+  filter(!is.na(segment))
+
+for (row in 2:length(UMD_batch1_draft_status_cols$JCVI_Bac_ID)) { # 2 to not affect column names
+  if(is.na(UMD_batch1_draft_status_cols$JCVI_Bac_ID[row])) {  
+    UMD_batch1_draft_status_cols$JCVI_Bac_ID[row] = UMD_batch1_draft_status_cols$JCVI_Bac_ID[row - 1] 
+  }
+}
+
+
+# batch2...
+
+
+UMD_batch2_draft_status_cols <- UMD_batch2_draft_status %>%
+  rename(JCVI_Bac_ID = X__1,
+         segment = X__2,
+         note = X__3) %>%
+  filter(!is.na(segment))
+
+for (row in 2:length(UMD_batch2_draft_status_cols$JCVI_Bac_ID)) { # 2 to not affect column names
+  if(is.na(UMD_batch2_draft_status_cols$JCVI_Bac_ID[row])) {  
+    UMD_batch2_draft_status_cols$JCVI_Bac_ID[row] = UMD_batch2_draft_status_cols$JCVI_Bac_ID[row - 1] 
+  }
+}
+
+
+## Merge batch data with the draft status for batches 1 and 2
+
+UMD_batch1_with_status <- UMD_batch1 %>%
+  left_join(UMD_batch1_draft_status_cols, by = c("JCVI Bac ID" = "JCVI_Bac_ID"))
+
+UMD_batch2_with_status <- UMD_batch2 %>%
+  left_join(UMD_batch2_draft_status_cols, by = c("JCVI Bac ID" = "JCVI_Bac_ID"))
+
+
+## Read in the sample metadata produced at UMD
+
+metadata_sample_codes <- read_csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/EMIT_seq_metadata_simple_data_structure.csv")
+
+
+## Row bind the batch 1 and batch 2 together and then add the merge in the metadata. 
+
+UMD_seq_batches_1_and_2 <- UMD_batch1_with_status %>%
+  bind_rows(UMD_batch2_with_status) %>%
+  left_join(metadata_sample_codes, by = c("Blinded Number" = "JCVI Sticker Code"))
+  
+batch_without_match <- UMD_seq_batches_1_and_2 %>%
+  filter(is.na(`Samples Picked for JCVI Sequencing`)) %>%
+  distinct(`JCVI Bac ID`, `Blinded Number`, `Organism Name provided by collaborator`, `Updated Organism Name (names that changed are in blue)`, `Special Notes`, `Complete/Draft`)
+
+
+UMD_metadata_seq_batches_1_and_2 <- UMD_batch1_with_status %>%
+  bind_rows(UMD_batch2_with_status) %>%
+  right_join(metadata_sample_codes, by = c("Blinded Number" = "JCVI Sticker Code"))
+  
+metadata_without_match <- UMD_metadata_seq_batches_1_and_2 %>%
+  filter(is.na(`JCVI Bac ID`)) %>%
+  distinct(`Blinded Number`, date.visit, pcrTest, `Samples Picked for JCVI Sequencing`, `Sample Type`, `Location in UMD Box`)
+
+
+full_seq_plus_metadata <- UMD_batch1_with_status %>%
+  bind_rows(UMD_batch2_with_status) %>%
+  full_join(metadata_sample_codes, by = c("Blinded Number" = "JCVI Sticker Code"))
+  
+
 
 
 ## Checking Nancy Leung's 3-Climate Paper data ####
