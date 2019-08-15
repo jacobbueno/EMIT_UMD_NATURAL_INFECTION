@@ -146,22 +146,26 @@ table(focus_pos_fine_pos_averaged_replicates$dpo)
 
 
 ## For Gene Tan JCVI Sequencing ####
-# What were the ct values of the influenza B virus samples.
+
+## What were the ct values of the influenza B virus samples (among positive replicates)
 
 # Flu B NPS
 
 flub_nps <- PNAS_data_full %>%
   filter(type == "B") %>%
   filter(sample.type == "Nasopharyngeal swab") %>%
-  mutate(mean_ct = mean(Ct, na.rm = TRUE))
-
+  filter(!is.na(Ct)) %>%
+  summarize(n_fluB_nps = n(), mean_ct = mean(Ct)) 
+print(flub_nps)
 
 # Flu B fine aerosol
 
 flub_fine <- PNAS_data_full %>%
   filter(type == "B") %>%
   filter(sample.type == "GII condensate NO mask") %>%
-  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+  filter(!is.na(Ct)) %>%
+  summarize(n_fluB_fine = n(), mean_ct = mean(Ct)) 
+print(flub_fine)
 
 
 # Flu B coarse aerosol
@@ -169,7 +173,9 @@ flub_fine <- PNAS_data_full %>%
 flub_coarse <- PNAS_data_full %>%
   filter(type == "B") %>%
   filter(sample.type == "Impactor 5 um NO mask") %>%
-  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+  filter(!is.na(Ct)) %>%
+  summarize(n_fluB_coarse = n(), mean_ct = mean(Ct)) 
+print(flub_coarse)
 
 
 # Flu A NPS
@@ -177,7 +183,9 @@ flub_coarse <- PNAS_data_full %>%
 flua_nps <- PNAS_data_full %>%
   filter(type == "A") %>%
   filter(sample.type == "Nasopharyngeal swab") %>%
-  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+  filter(!is.na(Ct)) %>%
+  summarize(n_fluA_nps = n(), mean_ct = mean(Ct)) 
+print(flua_nps)
 
 
 # Flu A fine aerosol
@@ -185,7 +193,9 @@ flua_nps <- PNAS_data_full %>%
 flua_fine <- PNAS_data_full %>%
   filter(type == "A") %>%
   filter(sample.type == "GII condensate NO mask") %>%
-  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+  filter(!is.na(Ct)) %>%
+  summarize(n_fluA_fine = n(), mean_ct = mean(Ct)) 
+print(flua_fine)
 
 
 # Flu A coarse aerosol
@@ -193,12 +203,14 @@ flua_fine <- PNAS_data_full %>%
 flua_coarse <- PNAS_data_full %>%
   filter(type == "A") %>%
   filter(sample.type == "Impactor 5 um NO mask") %>%
-  mutate(mean_ct = mean(Ct, na.rm = TRUE))
+  filter(!is.na(Ct)) %>%
+  summarize(n_fluA_coarse = n(), mean_ct = mean(Ct)) 
+print(flua_coarse)
 
 
 ## Checking JCVI sequencing metadata with Todd Treagen - August 2019
 
-## Read in the batch data in the files from JCVI
+## Read in the batch data in the files from JCVI (these link up with the sequence results)
 
 UMD_batch1 <- read_xls("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/20190306_UMDA_batch1_final_stats.xls", sheet = "UMDA_batch1")
 
@@ -244,7 +256,7 @@ for (row in 2:length(UMD_batch2_draft_status_cols$JCVI_Bac_ID)) { # 2 to not aff
 }
 
 
-## Merge batch data with the draft status for batches 1 and 2
+## Merge batch data with the draft status for batches 1 and 2 and join these batches together by binding rows
 
 UMD_batch1_with_status <- UMD_batch1 %>%
   left_join(UMD_batch1_draft_status_cols, by = c("JCVI Bac ID" = "JCVI_Bac_ID"))
@@ -252,37 +264,104 @@ UMD_batch1_with_status <- UMD_batch1 %>%
 UMD_batch2_with_status <- UMD_batch2 %>%
   left_join(UMD_batch2_draft_status_cols, by = c("JCVI Bac ID" = "JCVI_Bac_ID"))
 
+UMD_batch_1_and_2_with_status <- UMD_batch1_with_status %>%
+  bind_rows(UMD_batch2_with_status)
+
 
 ## Read in the sample metadata produced at UMD
 
-metadata_sample_codes <- read_csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/EMIT_seq_metadata_simple_data_structure.csv")
+metadata_sample_codes_fluA_raw <- read.csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/Metadata/20180923_NIGSP_UMDA_00001-00239.csv")
 
+metadata_sample_codes_fluB_raw <- read.csv("/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/Metadata/20180923_NIGSP_UMDB_00001-00089.csv")
+
+
+## Clean and merge the fluA and fluB metadata
+
+metadata_sample_codes_fluA <- metadata_sample_codes_fluA_raw %>%
+  filter(Attribute == "") %>%
+  select(Blinded.Number, Tube.Label, Virus.Name, Serotype, Collection.Date, Comments, Special.Notes, Date.Sent.to.JCVI, BioProject.ID) %>%
+  filter(Blinded.Number != "")
+
+metadata_sample_codes_fluB <- metadata_sample_codes_fluB_raw %>%
+  filter(Attribute == "") %>%
+  select(Blinded.Number, Tube.Label, Virus.Name, Serotype, Collection.Date, Comments, Special.Notes, Date.Sent.to.JCVI, BioProject.ID) %>%
+  filter(Blinded.Number != "")
+
+metadata_sample_codes_fluA_and_fluB <- metadata_sample_codes_fluA %>%
+  bind_rows(metadata_sample_codes_fluB)
 
 ## Row bind the batch 1 and batch 2 together and then add the merge in the metadata. 
 
-UMD_seq_batches_1_and_2 <- UMD_batch1_with_status %>%
-  bind_rows(UMD_batch2_with_status) %>%
-  left_join(metadata_sample_codes, by = c("Blinded Number" = "JCVI Sticker Code"))
-  
-batch_without_match <- UMD_seq_batches_1_and_2 %>%
-  filter(is.na(`Samples Picked for JCVI Sequencing`)) %>%
-  distinct(`JCVI Bac ID`, `Blinded Number`, `Organism Name provided by collaborator`, `Updated Organism Name (names that changed are in blue)`, `Special Notes`, `Complete/Draft`)
+EMIT_JCVI_seq_batches_1_and_2_with_metadata <- UMD_batch_1_and_2_with_status %>%
+  right_join(metadata_sample_codes_fluA_and_fluB, by = c("Blinded Number" = "Blinded.Number")) %>%
+  rename(JCVI_bac_id = `JCVI Bac ID`, 
+         blinded_number = `Blinded Number`,
+         organism_name = `Organism Name provided by collaborator`,
+         updated_organism_name = `Updated Organism Name (names that changed are in blue)`,
+         JCVI_sequencing_notes = `Special Notes`,
+         sequence_complete_check = `Complete/Draft`,
+         sequence_complete_segment = segment,
+         segment_note = note,
+         UMD_sample_id = Tube.Label,
+         virus_name = Virus.Name,
+         subtype = Serotype,
+         date_collection = Collection.Date,
+         tube_location = Comments,
+         sample_type = Special.Notes,
+         date_sent_UMD_to_JCVI = Date.Sent.to.JCVI,
+         JCVI_bioproject_id = BioProject.ID) %>%
+  mutate(date_collection = parse_date_time(date_collection, orders = "d-b-y")) %>%
+  mutate(date_sent_UMD_to_JCVI = parse_date_time(date_sent_UMD_to_JCVI, order = "d-b-y")) %>%
+  mutate(UMD_subject_id = str_replace(UMD_sample_id, "_.*", "")) 
 
+# Want to separate the sample_type from notes, and plan to use the ";" as the separator, but there were a few instances where there were multiple ";" in the cell, so to fix this, I plan to reprint these notes by substituting the second ";" with a hyphen.
 
-UMD_metadata_seq_batches_1_and_2 <- UMD_batch1_with_status %>%
-  bind_rows(UMD_batch2_with_status) %>%
-  right_join(metadata_sample_codes, by = c("Blinded Number" = "JCVI Sticker Code"))
-  
-metadata_without_match <- UMD_metadata_seq_batches_1_and_2 %>%
-  filter(is.na(`JCVI Bac ID`)) %>%
-  distinct(`Blinded Number`, date.visit, pcrTest, `Samples Picked for JCVI Sequencing`, `Sample Type`, `Location in UMD Box`)
+a <- EMIT_JCVI_seq_batches_1_and_2_with_metadata[c(630, 631, 718, 719),]$sample_type
+print(a)
 
+EMIT_JCVI_seq_batches_1_and_2_with_metadata[630, ]$sample_type = "Fine aerosol (G-II Concentrated condensate); Roommate Pair Sample - Negative Control Sample - Swab tested positive, aerosol tested negative"
 
-full_seq_plus_metadata <- UMD_batch1_with_status %>%
-  bind_rows(UMD_batch2_with_status) %>%
-  full_join(metadata_sample_codes, by = c("Blinded Number" = "JCVI Sticker Code"))
-  
+EMIT_JCVI_seq_batches_1_and_2_with_metadata[631, ]$sample_type = "Coarse aerosol (G-II Impactor); Roommate Pair Sample - Negative Control Sample - Swab tested postive, aerosol tested negative"
 
+EMIT_JCVI_seq_batches_1_and_2_with_metadata[718, ]$sample_type = "Fine Aerosol (G-II Concentrated Condensate); Roommate Pair Sample - Negative Control Sample - Swab tested positive, aerosol tested negative"
+
+EMIT_JCVI_seq_batches_1_and_2_with_metadata[719, ]$sample_type = "Fine Aerosol (G-II Concentrated Condensate); Roommate Pair Sample - Negative Control Sample - Swab tested positive, aerosol tested negative"
+
+b <- EMIT_JCVI_seq_batches_1_and_2_with_metadata[c(630, 631, 718, 719),]$sample_type
+print(b)
+
+EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean1 <- EMIT_JCVI_seq_batches_1_and_2_with_metadata %>%
+  separate(sample_type, c("sample_type", "UMD_sample_notes"), sep = ";")
+
+# clean up the sample_type names
+
+unique(EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean1$sample_type)
+
+EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean2 <- EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean1 %>%
+  mutate(sample_type = ifelse(sample_type == "Coarse aerosol (G-II Impactor)", "coarse", 
+                              ifelse(sample_type == "Coarse Aerosol (G-II Impactor)", "coarse",
+                                     ifelse(sample_type == "Fine aerosol (G-II Concentrated condensate)", "fine",
+                                            ifelse(sample_type == "Fine Aerosol (G-II Concentrated Condensate)", "fine", 
+                                                   ifelse(sample_type == "Nasopharyngeal Swab", "nps",
+                                                          ifelse(sample_type == "Oropharyngeal Swab", "ops", sample_type))))))) 
+
+unique(EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean2$sample_type)
+
+# clean up instances where sample_type is not clearly described
+
+c <- EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean2 %>%
+  filter(sample_type == "Negative Control (NP Swab negative, aerosol positive)")
+print(c)
+
+EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean3 <- EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean2 %>%
+  mutate(UMD_sample_notes = ifelse(sample_type == "Negative Control (NP Swab negative, aerosol positive)", "Negative Control (NP Swab negative, aerosol positive)", UMD_sample_notes)) %>%
+  mutate(sample_type = ifelse(sample_type == "Negative Control (NP Swab negative, aerosol positive)", "nps", sample_type))
+
+d <- EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean3 %>%
+  filter(sample_type == "Negative Control (NP Swab negative, aerosol positive)")
+print(d)
+
+write.csv(EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean3, "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/Metadata/EMIT_JCVI_seq_batches_1_and_2_with_metadata.csv")
 
 
 ## Checking Nancy Leung's 3-Climate Paper data ####
