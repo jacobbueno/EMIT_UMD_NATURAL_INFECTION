@@ -361,6 +361,8 @@ d <- EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean3 %>%
   filter(sample_type == "Negative Control (NP Swab negative, aerosol positive)")
 print(d)
 
+## Write out the file to box.com
+
 write.csv(EMIT_JCVI_seq_batches_1_and_2_with_metadata_clean3, "/Users/jbueno/Box Sync/EMIT/EMIT_Data_Analysis_Jake/EMIT_UMD_Natural_Infection/Sequence_Data/JCVI/Metadata/EMIT_JCVI_seq_batches_1_and_2_with_metadata.csv")
 
 
