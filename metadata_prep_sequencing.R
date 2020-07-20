@@ -1,6 +1,6 @@
 # metadata_prep_sequencing.R
 # Jacob Bueno de Mesquita
-# Date: July 10, 2020
+# Date: July 10, 16, 2020
 
 # Summary
 
@@ -28,16 +28,16 @@ meta_4_289_325 <- read.csv("/Users/jbueno/Box/EMIT/EMIT_seq/5_transfer_samples_j
 # add strain_name (X.3 variable)
 
 meta_1_1_96_prep <- meta_1_1_96 %>%
-  mutate(X.3 = paste("A/human/Maryland/", X, "/2012-2013", "(", X.4, ")", sep = ""))
+  mutate(X.3 = paste("A/human/Maryland/", X, "/2012", "(", X.4, ")", sep = ""))
   
 meta_2_97_192_prep <- meta_2_97_192 %>%
-  mutate(X.3 = paste("A/human/Maryland/", X, "/2012-2013", "(", X.4, ")", sep = ""))
+  mutate(X.3 = paste("A/human/Maryland/", X, "/2012", "(", X.4, ")", sep = ""))
 
 meta_3_193_2886_prep <- meta_3_193_288 %>%
-  mutate(X.3 = paste("A/human/Maryland/", X, "/2012-2013", "(", X.4, ")", sep = ""))
+  mutate(X.3 = paste("A/human/Maryland/", X, "/2012", "(", X.4, ")", sep = ""))
 
 meta_4_289_325_prep <- meta_4_289_325 %>%
-  mutate(X.3 = paste("A/human/Maryland/", X, "/2012-2013", "(", X.4, ")", sep = ""))
+  mutate(X.3 = paste("A/human/Maryland/", X, "/2012", "(", X.4, ")", sep = ""))
 
 # Write out files
 
