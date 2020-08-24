@@ -79,3 +79,7 @@ This output can be used in subsequent analyses or exploration into the dataset a
 
 While most of the analysis for the EMIT_UMD study was done in SAS (especially that as part of the PNAS manuscript), here are some others analyses that we will include as well. Here, we estimate the mean and variance for the ratio of ffu/copy number in fine aerosols from EMIT using a mixed model with random effect of person and fixed effect of day since onset of symptoms. 
 
+5) metadata_prep_sequencing.R
+
+Preparing metadata for sequencing analysis aims (CEIRS Option hypothesis 1)
+
