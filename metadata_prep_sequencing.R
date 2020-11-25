@@ -1,6 +1,6 @@
 # metadata_prep_sequencing.R
 # Jacob Bueno de Mesquita
-# Date: July-Sept, 2020
+# Date: July-Sept, Nov, 2020
 
 # Summary
 
@@ -122,7 +122,12 @@ umd_clean <- umd_emit %>%
   group_by(subject.id, date.visit, sample.type) %>%
   filter(!is.na(final.copies)) %>%
   mutate(RNA_load = mean(final.copies)) %>%
-  distinct(subject.id, date.visit, sample.type, RNA_load) %>%
+  distinct(subject.id,
+           sample.id,
+           date.visit,
+           dpo,
+           sample.type, 
+           RNA_load) %>%
   ungroup() %>%
   mutate(date.visit = as.Date(date.visit)) %>%
   filter(sample.type == "GII condensate NO mask" |
