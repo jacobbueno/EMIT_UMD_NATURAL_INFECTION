@@ -119,7 +119,7 @@ umd_emit <- box_search("all_cases.csv", ancestor_folder_ids = "61216893198") %>%
 
 umd_clean <- umd_emit %>%
   filter(!is.na(sample.type)) %>%
-  group_by(subject.id, date.visit, sample.type) %>%
+  group_by(subject.id, date.visit, sample.type, type) %>%
   filter(!is.na(final.copies)) %>%
   mutate(RNA_load = mean(final.copies)) %>%
   distinct(subject.id,
@@ -127,6 +127,8 @@ umd_clean <- umd_emit %>%
            date.visit,
            dpo,
            sample.type, 
+           type.inf,
+           type,
            RNA_load) %>%
   ungroup() %>%
   mutate(date.visit = as.Date(date.visit)) %>%
@@ -137,17 +139,28 @@ umd_clean <- umd_emit %>%
   mutate(sample.type = if_else(sample.type == "GII condensate NO mask", "Fine Aerosol (G-II Concentrated Condensate)", 
                                if_else(sample.type == "Impactor 5 um NO mask", "Coarse Aerosol (G-II Impactor)", if_else(sample.type == "Nasopharyngeal swab", "Nasopharyngeal Swab", "Oropharyngeal Swab"))))
 
+
+
 # merge the RNA_load information into the metadata files
+
+umd_clean_a <- umd_clean %>%
+  filter(type == "A")
+
+umd_clean_b <- umd_clean %>%
+  filter(type == "B")
+
+
 
 flu_a_with_rna_load <- flua %>%
   mutate(date_collection = as.Date(date_collection)) %>%
-  left_join(umd_clean, by = c("study_id" = "subject.id", "date_collection" = "date.visit", "sample_type" = "sample.type")) %>%
+  left_join(umd_clean_a, by = c("study_id" = "subject.id", "date_collection" = "date.visit", "sample_type" = "sample.type")) %>%
   select(-V7) %>%
   rename(notes = V6)
 
 flu_b_with_rna_load <- flub %>%
   mutate(date_collection = as.Date(date_collection, "%m/%d/%y")) %>%
-  left_join(umd_clean, by = c("study_id" = "subject.id", "date_collection" = "date.visit", "sample_type" = "sample.type"))
+  left_join(umd_clean_b, by = c("study_id" = "subject.id", "date_collection" = "date.visit", "sample_type" = "sample.type"))
+
 
 
 ## Write out the updated metadata
@@ -161,6 +174,146 @@ box_write(flu_a_with_rna_load, file_name ="flua_emit_ceirs_seq_20200923.csv", di
 # write.csv(flu_b_with_rna_load, "/Users/jbueno/Box/EMIT/EMIT_seq/2_seq_emit_sent_to_jcvi_2018/updated_metadata_emit_seq_jcvi_mtsinai/umd_sent_to_jcvi_for_seq/updated_metadata_to_use/flub_emit_ceirs_seq_20200824.csv")
 
 box_write(flu_b_with_rna_load, file_name ="flub_emit_ceirs_seq_20200923.csv", dir_id = "104645258100")
+
+
+
+### trying another approach to isolating the shedding data by ignoring the experiment instances where there was at least one replicate below detection limit. See if this changes the metadata previously produced (flu_a_with_rna_load, and flu_b_with_rna_load files).
+
+umd_emit_subtype <- umd_emit %>%
+  filter((type.inf == "H3N2" & type == "A") |
+           (type.inf == "Pandemic H1" & type == "A") |
+           (type.inf == "Unsubtypable A" & type == "A") |
+           (type.inf == "H3N2 and PH1" & type == "A") |
+           (type.inf == "H3N2 and B" & type == "A") |
+           (type.inf == "H3N2 and B" & type == "B") |
+           (type.inf == "B and unsubtypable A" & type == "A") |
+           (type.inf == "B and unsubtypable A" & type == "B") |
+           (type.inf == "B" & type == "B") )
+# Need to add this filter step because there are experiments testing for fluA and fluB even though often there isn't coinfection with A and B types so one of the experiments being negative is taken as negative and we examine the data for the assays that probe for the subtype where there is viral detection. The NP swab is the indicator of subtype and CDC panel was run on all of those samples. 
+
+
+
+umd_clean_repl_bel_lod <- umd_emit_subtype %>%
+  filter(!is.na(sample.type)) %>%
+  group_by(subject.id, date.visit, sample.type, Experiment) %>%
+  summarize(below_lod_repl = sum(is.na(final.copies)))
+  
+umd_clean_repl_above_lod <- umd_emit_subtype %>%
+  filter(!is.na(sample.type)) %>%
+  group_by(subject.id, date.visit, sample.type, Experiment) %>%
+  summarize(above_lod_repl = sum(!is.na(final.copies)))
+  
+# dif. between repl below and repl above lod
+
+below_above_lod <- umd_clean_repl_bel_lod %>%
+  left_join(umd_clean_repl_above_lod) %>%
+  mutate(all_repl_above_lod = if_else(below_lod_repl == 0 & above_lod_repl > 0, 1, 0),
+         discordant = if_else(below_lod_repl > 0 & above_lod_repl > 0, 1, 0),
+         all_below_lod_or_not_run = if_else(above_lod_repl == 0, 1, 0)) %>%
+  filter(!is.na(Experiment)) %>%
+  left_join(umd_emit_subtype, by = c("subject.id", "date.visit", "sample.type", "Experiment")) 
+# each experiment here is evaluated individually for each sample. If an experiment had all replicates tested giving a qRT-PCR value above detection limit, even if a second experiment on the same sample was discordant or showed all replicates below detection limit, the experiment with all repl above detection will be counted as having all replicates above detection and used in subsequent analysis as such.
+
+
+
+## How many sample-experiment observations (subject-date-sample_type combinations) had discordant (qRT-PCR replicates above and below detection limit)? How many had all replicates above detection? How many experiments within a subject-date-sample_type combination had multiple experiments with the same outcome, or different outcome with respect to all replicates above, below, or discordant?
+
+samp_exp_obs_discord <- below_above_lod %>%
+  distinct(subject.id, date.visit, sample.type, discordant, .keep_all = FALSE) %>%
+  filter(discordant == 1) 
+nrow(samp_exp_obs_discord)
+
+samp_exp_obs_detect_all_repl <- below_above_lod %>%
+  distinct(subject.id, date.visit, sample.type, all_repl_above_lod, .keep_all = FALSE) %>%
+  filter(all_repl_above_lod == 1) 
+nrow(samp_exp_obs_detect_all_repl)
+
+samp_exp_obs_detect_no_repl <- below_above_lod %>%
+  distinct(subject.id, date.visit, sample.type, all_below_lod_or_not_run, .keep_all = FALSE) %>%
+  filter(all_below_lod_or_not_run == 1) 
+nrow(samp_exp_obs_detect_no_repl)
+# This is over the group where there was at least one positive sample (subtype exists and is not negative)
+
+
+
+all_repl_above_lod_df <- below_above_lod %>%
+  filter(all_repl_above_lod == 1) %>%
+  group_by(subject.id, date.visit, sample.type, type) %>%
+  mutate(RNA_load = mean(final.copies)) %>%
+  distinct(subject.id,
+           sample.id,
+           date.visit,
+           dpo,
+           sample.type,
+           type.inf,
+           type,
+           RNA_load) %>%
+  ungroup() %>%
+  mutate(date.visit = as.Date(date.visit)) %>%
+  filter(sample.type == "GII condensate NO mask" |
+           sample.type == "Impactor 5 um NO mask" |
+           sample.type == "Nasopharyngeal swab" |
+           sample.type == "Throat swab") %>%
+  mutate(sample.type = if_else(sample.type == "GII condensate NO mask", "Fine", 
+                               if_else(sample.type == "Impactor 5 um NO mask", "Coarse", if_else(sample.type == "Nasopharyngeal swab", "Nasopharyngeal", "Oropharyngeal"))))
+
+
+
+flu_a_vir_load_all_rep_above_lod <- all_repl_above_lod_df %>%
+  filter(type == "A")
+
+flu_b_vir_load_all_rep_above_lod <- all_repl_above_lod_df %>%
+  filter(type == "B")
+
+
+
+flu_a_with_rna_load_new <- flua %>%
+  mutate(date_collection = as.Date(date_collection)) %>%
+  select(-V7) %>%
+  rename(notes = V6) %>%
+  mutate(sample_type = if_else(sample_type == "Fine Aerosol (G-II Concentrated Condensate)", "Fine", 
+                               if_else(sample_type == "Coarse Aerosol (G-II Impactor)", "Coarse", if_else(sample_type == "Nasopharyngeal Swab", "Nasopharyngeal", "Oropharyngeal Swab")))) %>%
+  left_join(flu_a_vir_load_all_rep_above_lod, by = c("study_id" = "subject.id", "date_collection" = "date.visit", "sample_type" = "sample.type"))
+
+
+
+flu_b_with_rna_load_new <- flub %>%
+  mutate(date_collection = as.Date(date_collection, "%m/%d/%y")) %>%
+  mutate(sample_type = if_else(sample_type == "Fine Aerosol (G-II Concentrated Condensate)", "Fine", 
+                               if_else(sample_type == "Coarse Aerosol (G-II Impactor)", "Coarse", if_else(sample_type == "Nasopharyngeal Swab", "Nasopharyngeal", "Oropharyngeal Swab")))) %>%
+  left_join(flu_b_vir_load_all_rep_above_lod, by = c("study_id" = "subject.id", "date_collection" = "date.visit", "sample_type" = "sample.type"))
+
+
+
+###
+# The set that made it into the final analysis from Todd's group (e.g., had sufficient sequence data)
+# Note that RNA_load variable in this df is from the earlier attempt at quantifying the RNA load in the samples (that we have since amended in this script)
+seq_subset <- box_search("Merged-metadata-EMIT-samples", ancestor_folder_ids = "127774011195") %>%
+  box_read() 
+
+# Let's see how the previous version compares with this version
+
+flu_a_b_row_bind <- flu_a_with_rna_load_new %>%
+  bind_rows(flu_b_with_rna_load_new) %>%
+  select(-sample.id,
+         -dpo)
+
+seq_subset_new_viral_load <- seq_subset %>%
+  rename(RNA_load_old = RNA_load) %>%
+  left_join(flu_a_b_row_bind, by = c("jcvi_id", "umd_sample_id", "sample_type", "study_id", "date_collection"))
+
+# noticing issue with dpo variable, will sort that here
+
+seq_subset_dpo <- seq_subset_new_viral_load %>%
+  distinct(study_id, date_collection, dpo) %>%
+  mutate(dpo = as.numeric(dpo)) %>%
+  filter(!is.na(dpo)) # assuming that another sample type will provide the correct dpo for all the oropharyngeal swabs that are listed as NA, which, looks accurate since there are 60 subject_id-dates in the final seq_subset df
+
+seq_subset_new_viral_load_clean <- seq_subset_new_viral_load %>%
+  select(-dpo) %>%
+  left_join(seq_subset_dpo)
+
+
 
 
 

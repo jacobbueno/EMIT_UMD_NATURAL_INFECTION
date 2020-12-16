@@ -179,6 +179,31 @@ summary_samp_type_n <- seq_subset_tab1 %>%
 
 
 
+# Determine how many of each sample type exist overall
+
+samp_types_overall_n <- seq_subset_tab1 %>%
+  distinct(study_id,
+           date_collection,
+           sample_type,
+           .keep_all = FALSE) %>%
+  group_by(sample_type) %>%
+  summarise(n_samp_types_inst = n())
+samp_types_overall_n # across all sampling instances
+
+
+
+# Determine total number of sampling instances
+
+sampling_instances <- seq_subset_tab1 %>%
+  distinct(study_id,
+           date_collection,
+           .keep_all = FALSE) %>%
+  summarise(n_sampling_instances = n())
+sampling_instances # At each sampling instance, there could be between 1 and 4 types of samples with available data (NPS, OPS, fine, coarse aerosol)
+
+
+
+
 # now prepping data for table creation
 
 seq_sid <- seq_subset_tab1 %>%
@@ -242,7 +267,7 @@ seq_subset_tab1_prep <- seq_subset_tab1 %>%
          chest_tight = as.numeric(chest_tight),
          sob = as.numeric(sob),
          cough = as.numeric(cough),
-         antiviral_24h = as.factor(antiviral_24h))
+         anitviral_24h = as.factor(anitviral_24h))
 
 
 sx_summary <- tableby( ~ 
@@ -283,6 +308,8 @@ kable(sx_sum, align = "c") %>%
 
 
 
+
+### Checking the viral load values (previously dropped all missing replicates, but new version dropped all samples were there was a missing replicate)
 
 
 
