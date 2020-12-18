@@ -84,4 +84,4 @@ While most of the analysis for the EMIT_UMD study was done in SAS (especially th
 Preparing metadata for sequencing analysis aims (CEIRS Option hypothesis 1)
 
 
-Published data prepared using the natural_vs_artificial_infection repo.
+Published data prepared using the natural_vs_artificial_infection repo (emit_nat_published.csv and emit_nat_published.Rdata).
